@@ -23,6 +23,8 @@ public class Destructible : MonoBehaviour
     public void Destruction(Vector3 impact, float radiusExplosion) {
         List<Vector3> vertices = new List<Vector3>();
         List<int> triangles = new List<int>();
+        List<Vector3> verticesRemoved = new List<Vector3>();
+        List<int> trianglesRemoved = new List<int>();
         List<Color> colors = new List<Color>();
         List<Vector2> uvs = new List<Vector2>();
         mesh.GetVertices(vertices);
@@ -37,6 +39,7 @@ public class Destructible : MonoBehaviour
             //Debug.Log("Distance("+vertices[verticesIndex]+" y "+(impact - transform.transform.position)+"): " + Vector3.Distance(vertices[verticesIndex], impact - transform.transform.position));
             if (Vector3.Distance(vertices[verticesIndex] * transform.localScale.x, impact - transform.transform.position) < radiusExplosion) {
                 //Debug.Log("Quitando vertice: index " + verticesIndex + " value: " + vertices[verticesIndex]);
+                verticesRemoved.Add(vertices[verticesIndex]);
                 vertices.RemoveAt(verticesIndex);
                 //Debug.Log("Triangles left: " + (triangles.Count / 3));
                 for (int trianglesIndex = 0; trianglesIndex < triangles.Count; trianglesIndex++) {
@@ -48,6 +51,7 @@ public class Destructible : MonoBehaviour
                         for (int triangleIndex = 2; triangleIndex >= 0; triangleIndex--) {
                             Debug.Log((startTriangleIndex + triangleIndex) + " - " + triangles.ElementAtOrDefault(startTriangleIndex + triangleIndex));
 
+                            trianglesRemoved.Add(triangles[startTriangleIndex + triangleIndex]);
                             triangles.RemoveAt(startTriangleIndex + triangleIndex);
 
                         }
@@ -81,6 +85,13 @@ public class Destructible : MonoBehaviour
         mesh.RecalculateBounds();
         mesh.RecalculateNormals();
         mesh.RecalculateTangents();
+
+        Debug.Log("Vertices removed: ");
+        verticesRemoved.ForEach(vertice => {
+            Debug.Log("Vertice: " + vertice + " Distance: " + Vector3.Distance(vertice * transform.localScale.x, impact - transform.transform.position));
+        }); 
+
+        
         
 
         return;
