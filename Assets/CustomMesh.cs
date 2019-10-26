@@ -44,7 +44,7 @@ public class CustomMesh : MonoBehaviour
 {
     [SerializeField] private int sizeCircle = 1;
     [SerializeField] private float step = 0.2f;
-    [SerializeField] private List<Vector2> points;
+    [SerializeField] private List<Vector3> points;
     [SerializeField] private GameObject _verticePrefab;
     // Start is called before the first frame update
     private Triangle superTriangle = new Triangle();
@@ -54,6 +54,17 @@ public class CustomMesh : MonoBehaviour
     private int indexVertice = 0;
 
     void Start() {
+        points = new List<Vector3>();
+
+        for (int i = 0; i < 10; i++) {
+            points.Add(new Vector3(Mathf.Cos(i * Mathf.PI * 2 / 10) + Random.Range(0, 0.1f), Mathf.Sin(i * Mathf.PI * 2 / 10) + Random.Range(0, 0.1f), 0 ));
+        }
+        for (int i = 0; i < 5; i++) {
+            points.Add(new Vector3(Mathf.Cos(i * Mathf.PI * 2 / 5) * 0.5f + Random.Range(0, 0.1f), Mathf.Sin(i * Mathf.PI * 2 / 5) * 0.5f + Random.Range(0, 0.1f), 0.2f ));
+        }
+        for (int i = 0; i < 1; i++) {
+            points.Add(new Vector3(Random.Range(0, 0.1f), 0, 0.4f ));
+        }
         Startv2();
     }
 
@@ -116,7 +127,7 @@ public class CustomMesh : MonoBehaviour
             if (!vertices.Exists(vertice => vertice == triangleGenerated.first.origin)) {
                 triangleGenerated.first.origin.index = indexVertice++;
                 vertices.Add(triangleGenerated.first.origin);
-                meshVertices.Add(new Vector3(triangleGenerated.first.origin.position.x, triangleGenerated.first.origin.position.y, 0));
+                meshVertices.Add(new Vector3(triangleGenerated.first.origin.position.x, triangleGenerated.first.origin.position.y, triangleGenerated.first.origin.position.z));
                 meshTriangles.Add(triangleGenerated.first.origin.index);
             }
             else {
@@ -125,7 +136,7 @@ public class CustomMesh : MonoBehaviour
             if (!vertices.Exists(vertice => vertice == triangleGenerated.second.origin)) {
                 triangleGenerated.second.origin.index = indexVertice++;
                 vertices.Add(triangleGenerated.second.origin);
-                meshVertices.Add(new Vector3(triangleGenerated.second.origin.position.x, triangleGenerated.second.origin.position.y, 0));
+                meshVertices.Add(new Vector3(triangleGenerated.second.origin.position.x, triangleGenerated.second.origin.position.y, triangleGenerated.second.origin.position.z));
                 meshTriangles.Add(triangleGenerated.second.origin.index);
 
             }
@@ -135,7 +146,7 @@ public class CustomMesh : MonoBehaviour
             if (!vertices.Exists(vertice => vertice == triangleGenerated.third.origin)) {
                 triangleGenerated.third.origin.index = indexVertice++;
                 vertices.Add(triangleGenerated.third.origin);
-                meshVertices.Add(new Vector3(triangleGenerated.third.origin.position.x, triangleGenerated.third.origin.position.y, 0));
+                meshVertices.Add(new Vector3(triangleGenerated.third.origin.position.x, triangleGenerated.third.origin.position.y, triangleGenerated.third.origin.position.z));
                 meshTriangles.Add(triangleGenerated.third.origin.index);
 
             }
@@ -154,7 +165,7 @@ public class CustomMesh : MonoBehaviour
         yield return new WaitForSeconds(_speedConstructionMesh);
         //points.ForEach(point => {
         for (int pointIndex = 0; pointIndex < points.Count; pointIndex++) {
-            Vector3 verticePosition = new Vector3(points[pointIndex].x, points[pointIndex].y, 0);
+            Vector3 verticePosition = new Vector3(points[pointIndex].x, points[pointIndex].y, points[pointIndex].z);
             Vertice verticePoint = new Vertice(verticePosition, indexVertice++);
             Instantiate(_verticePrefab, verticePosition * transform.localScale.x + transform.position, Quaternion.identity);
             yield return new WaitForSeconds(_speedConstructionMesh);
@@ -307,11 +318,11 @@ public class CustomMesh : MonoBehaviour
                triangle1.third.origin == triangle2.third.origin;
     }
 
-    private Triangle GetSuperTrianglev1(List<Vector2> points) {
+    private Triangle GetSuperTrianglev1(List<Vector3> points) {
         superTriangle = new Triangle();
-        Vertice firstVertice = new Vertice(new Vector3(0, 0.4f, 0), indexVertice++);
-        Vertice secondtVertice = new Vertice(new Vector3(-0.7f, -0.4f, 0), indexVertice++);
-        Vertice thirdVertice = new Vertice(new Vector3(0.7f, -0.4f, 0), indexVertice++);
+        Vertice firstVertice = new Vertice(new Vector3(0, 3.4f, 0), indexVertice++);
+        Vertice secondtVertice = new Vertice(new Vector3(-3.7f, -3.4f, 0), indexVertice++);
+        Vertice thirdVertice = new Vertice(new Vector3(3.7f, -3.4f, 0), indexVertice++);
 
         superTriangle.first = new Edge(secondtVertice, firstVertice);
         superTriangle.second = new Edge(firstVertice, thirdVertice);
@@ -332,7 +343,7 @@ public class CustomMesh : MonoBehaviour
         float circumcenterX = triangle.first.origin.position.x * Mathf.Sin(2 * angleFirst) + triangle.second.origin.position.x * Mathf.Sin(2 * angleSecond) + triangle.third.origin.position.x * Mathf.Sin(2 * angleThird);
         float circumcenterY = triangle.first.origin.position.y * Mathf.Sin(2 * angleFirst) + triangle.second.origin.position.y * Mathf.Sin(2 * angleSecond) + triangle.third.origin.position.y * Mathf.Sin(2 * angleThird);
 
-        Vector3 circumcenter = new Vector3(circumcenterX, circumcenterY, 0) / (Mathf.Sin(2 * angleFirst) + Mathf.Sin(2 * angleSecond) + Mathf.Sin(2 * angleThird));
+        Vector2 circumcenter = new Vector2(circumcenterX, circumcenterY) / (Mathf.Sin(2 * angleFirst) + Mathf.Sin(2 * angleSecond) + Mathf.Sin(2 * angleThird));
 
         float radiusFirst = triangle.first.MagnitudeEdge();
         float radiusSecond = triangle.second.MagnitudeEdge();
@@ -341,10 +352,31 @@ public class CustomMesh : MonoBehaviour
         float circumradius = radiusFirst * radiusSecond * radiusThird / Mathf.Sqrt((radiusFirst + radiusSecond + radiusThird) * (radiusSecond + radiusThird - radiusFirst) * (radiusThird + radiusFirst - radiusSecond) * (radiusFirst + radiusSecond - radiusThird));
         
         Debug.Log("Circumcenter: " + circumcenter + " Radius: " + circumradius);
-        return Vector3.Distance(new Vector3(point.x, point.y, 0), circumcenter) < circumradius;
+        bool isPointInside = Vector2.Distance(new Vector2(point.x, point.y), circumcenter) < circumradius;
+
+        if (isPointInside) {
+            DrawCircle(circumcenter, circumradius, 100);
+        }
+        return isPointInside;
         
         //circumcenterX /= (Mathf.Sin(2 * angleFirst) + Mathf.Sin(2 * angleSecond) + Mathf.Sin(2 * angleThird));
         //circumcenterX /= (Mathf.Sin(2 * angleFirst) + Mathf.Sin(2 * angleSecond) + Mathf.Sin(2 * angleThird));
+    }
+
+    private void DrawCircle(Vector2 point, float radius, int numPoints) {
+        Debug.Log("Drawing Circle");
+        List<Vector3> points = new List<Vector3>();
+        Vector2 pointScaled = point * transform.localScale.x + new Vector2(transform.position.x, transform.position.y);
+        float radiusScaled = radius * transform.localScale.x;
+        for (int i = 0; i < numPoints; i++) {
+            Vector3 newPoint = new Vector3(pointScaled.x + Mathf.Cos(i * Mathf.PI * 2 / numPoints) * radiusScaled, pointScaled.y + Mathf.Sin(i * Mathf.PI * 2 / numPoints) * radiusScaled, 0);
+            points.Add(newPoint);
+        }
+
+        for (int i = 0; i < points.Count(); i++) {
+
+            Debug.DrawLine(points[i] , points[(i + 1)%points.Count()], Color.yellow, _speedConstructionMesh * 4);
+        }
     }
 
 
