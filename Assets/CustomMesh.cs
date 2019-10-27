@@ -38,13 +38,41 @@ public class Triangle {
     public Edge first;
     public Edge second;
     public Edge third;
+
+    public void DrawTriangle() {
+        Debug.DrawLine(first.origin.position, first.end.position, Color.white, 3f);
+        Debug.DrawLine(second.origin.position, second.end.position, Color.white, 3f);
+        Debug.DrawLine(third.origin.position, third.end.position, Color.white, 3f);
+    }
 }
 
+public class VerticeOnSphere {
+    public Vertice vertice;
+    public Vector3 localPosition;
+
+    public VerticeOnSphere(Vertice _vertice, Vector3 _centerSphere) {
+        vertice = _vertice;
+        localPosition = _vertice.position - _centerSphere;
+    }
+}
+
+public class Plane {
+    public Vector3 firstVector;
+    public Vector3 secondVector;
+
+    public Vector3 normal;
+
+    public Plane(Vector3 _firstVector, Vector3 _secondVector) {
+        firstVector = _firstVector;
+        secondVector = _secondVector;
+        normal = Vector3.Cross(_firstVector, _secondVector);
+    }
+}
 public class CustomMesh : MonoBehaviour
 {
     [SerializeField] private int sizeCircle = 1;
     [SerializeField] private float step = 0.2f;
-    [SerializeField] private List<Vector3> points;
+    [SerializeField] public List<Vector3> points;
     [SerializeField] private GameObject _verticePrefab;
     // Start is called before the first frame update
     private Triangle superTriangle = new Triangle();
@@ -52,8 +80,10 @@ public class CustomMesh : MonoBehaviour
     List<Triangle> triangulationv2 = new List<Triangle>();
 
     private int indexVertice = 0;
-
+    public bool isActive = false;
     void Start() {
+        Startv3();
+        /* 
         points = new List<Vector3>();
 
         for (int i = 0; i < 10; i++) {
@@ -64,15 +94,269 @@ public class CustomMesh : MonoBehaviour
         }
         for (int i = 0; i < 1; i++) {
             points.Add(new Vector3(Random.Range(0, 0.1f), 0, 0.4f ));
+        }*/
+        //Startv2();
+    }
+
+   
+
+    public void Startv3() {
+        List<VerticeOnSphere> points = new List<VerticeOnSphere>();
+        Vector3 center = new Vector3(0.5f,0.5f,0.5f);
+        Vertice v1 = new Vertice(new Vector3(0,0,0), 0);
+        Vertice v2 = new Vertice(new Vector3(0,0,0.5f), 1);
+        Vertice v3 = new Vertice(new Vector3(0,0,1), 2);
+        Vertice v4 = new Vertice(new Vector3(0.1f,0.5f,0), 3);
+        Vertice v5 = new Vertice(new Vector3(0.1f,1,0), 4);
+        Vertice v6 = new Vertice(new Vector3(0.1f,0.5f,0.5f), 5);
+        Vertice v7 = new Vertice(new Vector3(0.2f,1,0.5f), 6);
+        Vertice v8 = new Vertice(new Vector3(0.2f,1,1), 7);
+
+        points.Add(new VerticeOnSphere(v1, center));
+        points.Add(new VerticeOnSphere(v2, center));
+        points.Add(new VerticeOnSphere(v3, center));
+        points.Add(new VerticeOnSphere(v4, center));
+        points.Add(new VerticeOnSphere(v5, center));
+        points.Add(new VerticeOnSphere(v6, center));
+        points.Add(new VerticeOnSphere(v7, center));
+        points.Add(new VerticeOnSphere(v8, center));
+
+        //List<VerticeOnSphere> pointsToTriangulate = new List<VerticeOnSphere>();
+        List<Vertice> verticesToTriangulate = new List<Vertice>();
+        List<Triangle> trianglesBowyerWatson = new List<Triangle>();
+        List<Triangle> triangles = new List<Triangle>();
+        Plane plane;
+
+        //Half sphere where X < 0
+        points.FindAll(point => point.localPosition.x < 0).ForEach(point => {
+            verticesToTriangulate.Add(point.vertice);
+        });
+        Debug.Log("Vertices to triangulate: " + verticesToTriangulate.Count);
+        plane = new Plane(Vector3.forward, Vector3.up);
+        trianglesBowyerWatson = trianglesBowyerWatson.Concat(BowyerWatsonv3(verticesToTriangulate, plane)).ToList();
+        verticesToTriangulate = new List<Vertice>();
+
+        //Half sphere where X >= 0
+        points.FindAll(point => point.localPosition.x >= 0).ForEach(point => {
+            verticesToTriangulate.Add(point.vertice);
+        });
+        Debug.Log("Vertices to triangulate: " + verticesToTriangulate.Count);
+        plane = new Plane(Vector3.back, Vector3.up);
+        trianglesBowyerWatson = trianglesBowyerWatson.Concat(BowyerWatsonv3(verticesToTriangulate, plane)).ToList();
+        verticesToTriangulate = new List<Vertice>();
+
+        //Half sphere where Y < 0
+        points.FindAll(point => point.localPosition.y < 0).ForEach(point => {
+            verticesToTriangulate.Add(point.vertice);
+        });
+        Debug.Log("Vertices to triangulate: " + verticesToTriangulate.Count);
+        plane = new Plane(Vector3.right, Vector3.forward);
+        trianglesBowyerWatson = trianglesBowyerWatson.Concat(BowyerWatsonv3(verticesToTriangulate, plane)).ToList();
+        verticesToTriangulate = new List<Vertice>();
+
+        //Half sphere where Y >= 0
+        points.FindAll(point => point.localPosition.y >= 0).ForEach(point => {
+            verticesToTriangulate.Add(point.vertice);
+        });
+        Debug.Log("Vertices to triangulate: " + verticesToTriangulate.Count);
+        plane = new Plane(Vector3.right, Vector3.back);
+        trianglesBowyerWatson = trianglesBowyerWatson.Concat(BowyerWatsonv3(verticesToTriangulate, plane)).ToList();
+        verticesToTriangulate = new List<Vertice>();
+        
+        //Half sphere where Z < 0
+        points.FindAll(point => point.localPosition.z < 0).ForEach(point => {
+            verticesToTriangulate.Add(point.vertice);
+        });
+        Debug.Log("Vertices to triangulate: " + verticesToTriangulate.Count);
+        plane = new Plane(Vector3.left, Vector3.up);
+        trianglesBowyerWatson = trianglesBowyerWatson.Concat(BowyerWatsonv3(verticesToTriangulate, plane)).ToList();
+        verticesToTriangulate = new List<Vertice>();
+
+        //Half sphere where Y >= 0
+        points.FindAll(point => point.localPosition.z >= 0).ForEach(point => {
+            verticesToTriangulate.Add(point.vertice);
+        });
+        Debug.Log("Vertices to triangulate: " + verticesToTriangulate.Count);
+        plane = new Plane(Vector3.right, Vector3.up);
+        trianglesBowyerWatson = trianglesBowyerWatson.Concat(BowyerWatsonv3(verticesToTriangulate, plane)).ToList();
+        verticesToTriangulate = new List<Vertice>();
+
+        points.ForEach(point => {
+            verticesToTriangulate.Add(point.vertice);
+        });
+
+        Mesh customMesh = new Mesh();
+
+        List<Vector3> meshVertices = new List<Vector3>();
+        List<int> meshTriangles = new List<int>();
+
+        meshVertices = customMesh.vertices.ToList();
+        meshTriangles = customMesh.triangles.ToList();
+        AddGeneratedVerticesAndTrianglesToMesh(customMesh, meshVertices, meshTriangles, verticesToTriangulate, trianglesBowyerWatson);
+        
+        
+        customMesh.vertices = meshVertices.ToArray();
+        customMesh.triangles = meshTriangles.ToArray();
+
+        customMesh.RecalculateNormals();
+
+        GetComponent<MeshFilter>().mesh = customMesh;
+
+  
+    }
+
+    private void AddGeneratedVerticesAndTrianglesToMesh(Mesh mesh, List<Vector3> meshVertices, List<int> meshTriangles, List<Vertice> verticesGenerated, List<Triangle> trianglesGenerated) {
+   
+
+        
+        verticesGenerated.ForEach(verticeGenerated => {
+            meshVertices.Add(verticeGenerated.position);
+        });
+
+
+
+        trianglesGenerated.ForEach(triangleGenerated => {
+            meshTriangles.Add(triangleGenerated.first.origin.index);
+            meshTriangles.Add(triangleGenerated.second.origin.index);
+            meshTriangles.Add(triangleGenerated.third.origin.index);
+        });
+
+
+
+
+    }
+
+    private Vertice PointProjectedInPlane(Vertice point, Vector3 normalPlane) {
+        Vector3 origToPoint = point.position - new Vector3(0,0,0);
+        float d = Vector3.Dot(origToPoint, normalPlane);
+        return new Vertice(point.position - d * normalPlane, point.index);
+    }
+    private List<Triangle> BowyerWatsonv3(List<Vertice> vertices, Plane plane) {
+
+        List<Triangle> triangulation = new List<Triangle>();
+        Triangle superTriangle = GetSuperTrianglev3(plane);
+        triangulation.Add(superTriangle);
+        //points.ForEach(point => {
+        for (int verticesIndex = 0; verticesIndex < vertices.Count; verticesIndex++) {
+            Vertice verticeProjected= PointProjectedInPlane(vertices[verticesIndex], plane.normal);
+            //Vertice verticePoint = new Vertice(verticePosition, indexVertice++);
+            //Instantiate(_verticePrefab, verticePosition * transform.localScale.x + transform.position, Quaternion.identity);
+
+            List<Triangle> badTriangles = new List<Triangle>();
+            triangulation.ForEach(triangle => {
+                if (isPointInsideCircumcircleTrianglev3(verticeProjected.position, triangle)) {
+                    badTriangles.Add(triangle);
+                }
+            });
+
+
+            for (int badTriangleIndex = 0; badTriangleIndex < badTriangles.Count; badTriangleIndex++) {
+                triangulation.Remove(badTriangles[badTriangleIndex]);
+    
+            }
+            
+
+            List<Edge> polygon = new List<Edge>();
+            List<Edge> possibleNotSharedEdges = new List<Edge>();
+            badTriangles.ForEach(triangle => {
+                possibleNotSharedEdges.Add(triangle.first);
+                possibleNotSharedEdges.Add(triangle.second);
+                possibleNotSharedEdges.Add(triangle.third);
+            });
+
+            possibleNotSharedEdges.ForEach(possibleEdge => {
+                if (possibleNotSharedEdges.FindAll(edge => Edge.IsSameVertices(possibleEdge, edge)).Count() == 1) {
+                    Debug.Log("Added to Polygon: o(" + possibleEdge.origin.position + ") e(" + possibleEdge.end.position);
+                    polygon.Add(possibleEdge);
+                }
+                else {
+                    Debug.Log("NOT Added to Polygon: o(" + possibleEdge.origin.position + ") e(" + possibleEdge.end.position);
+                }
+            });
+
+
+            for (int polygonIndex = 0; polygonIndex < polygon.Count; polygonIndex++) {
+                Triangle newTri = new Triangle();
+                newTri.first = polygon[polygonIndex];
+                newTri.second = new Edge(vertices[verticesIndex], polygon[polygonIndex].origin);
+                newTri.third = new Edge(polygon[polygonIndex].end, vertices[verticesIndex]);
+
+                Vector3 normal = Vector3.Cross(newTri.first.GetEdgeVector(), newTri.second.GetEdgeVector());
+
+                if (Vector3.Dot(normal, plane.normal) > 0) {
+                    Edge aux = newTri.first;
+                    newTri.first = newTri.third;
+                    newTri.third = aux;
+                }
+                triangulation.Add(newTri);
+    
+            }
+            
+
         }
-        Startv2();
+
+
+        List<Triangle> finaltriangulation = new List<Triangle>();
+        triangulation.ForEach(triangle => {
+            if (!isSharedVerticeTrianglesv1(triangle, superTriangle)) {
+                finaltriangulation.Add(triangle);
+            }
+        });
+
+
+        triangulation = finaltriangulation;
+
+        Debug.Log("Triangulation: number triangles - " + triangulation.Count);
+
+        return triangulation;
     }
 
-    void Update() {
-        Updatev2();
-    }
-    void Startv2() {
+    private Triangle GetSuperTrianglev3(Plane plane) {
+        Triangle superTriangle = new Triangle();
+        Vertice firstVertice = new Vertice(plane.firstVector * 666, -1);
+        Vertice secondtVertice = new Vertice(plane.secondVector * 500 - plane.firstVector * 200, -1);
+        Vertice thirdVertice = new Vertice(-plane.secondVector * 500 - plane.firstVector * 200, -1);
 
+        superTriangle.first = new Edge(secondtVertice, firstVertice);
+        superTriangle.second = new Edge(firstVertice, thirdVertice);
+        superTriangle.third = new Edge(thirdVertice, secondtVertice);
+        return superTriangle;
+    }
+
+    private bool isPointInsideCircumcircleTrianglev3(Vector3 point, Triangle triangle) {
+        float angleFirst = Vector3.Angle(triangle.second.origin.position - triangle.first.origin.position, triangle.third.origin.position - triangle.first.origin.position);
+        float angleSecond = Vector3.Angle(triangle.first.origin.position - triangle.second.origin.position, triangle.third.origin.position - triangle.second.origin.position);
+        float angleThird = Vector3.Angle(triangle.first.origin.position - triangle.third.origin.position, triangle.second.origin.position - triangle.third.origin.position);
+        angleFirst *= Mathf.Deg2Rad;
+        angleSecond *= Mathf.Deg2Rad;
+        angleThird *= Mathf.Deg2Rad;
+
+        float circumcenterX = triangle.first.origin.position.x * Mathf.Sin(2 * angleFirst) + triangle.second.origin.position.x * Mathf.Sin(2 * angleSecond) + triangle.third.origin.position.x * Mathf.Sin(2 * angleThird);
+        float circumcenterY = triangle.first.origin.position.y * Mathf.Sin(2 * angleFirst) + triangle.second.origin.position.y * Mathf.Sin(2 * angleSecond) + triangle.third.origin.position.y * Mathf.Sin(2 * angleThird);
+        float circumcenterZ = triangle.first.origin.position.z * Mathf.Sin(2 * angleFirst) + triangle.second.origin.position.z * Mathf.Sin(2 * angleSecond) + triangle.third.origin.position.z * Mathf.Sin(2 * angleThird);
+
+        Vector3 circumcenter = new Vector3(circumcenterX, circumcenterY, circumcenterZ) / (Mathf.Sin(2 * angleFirst) + Mathf.Sin(2 * angleSecond) + Mathf.Sin(2 * angleThird));
+
+        float radiusFirst = triangle.first.MagnitudeEdge();
+        float radiusSecond = triangle.second.MagnitudeEdge();
+        float radiusThird = triangle.third.MagnitudeEdge();
+        
+        float circumradius = radiusFirst * radiusSecond * radiusThird / Mathf.Sqrt((radiusFirst + radiusSecond + radiusThird) * (radiusSecond + radiusThird - radiusFirst) * (radiusThird + radiusFirst - radiusSecond) * (radiusFirst + radiusSecond - radiusThird));
+        
+        float distancePointToCircumcenter = Vector3.Distance(point, circumcenter);
+        Debug.Log("Circumcenter: " + circumcenter + " Radius: " + circumradius + " Distance: " + distancePointToCircumcenter);
+        bool isPointInside = distancePointToCircumcenter < circumradius;
+
+        if (isPointInside) {
+            DrawCircle(circumcenter, circumradius, 100);
+        }
+        return isPointInside;
+        
+        //circumcenterX /= (Mathf.Sin(2 * angleFirst) + Mathf.Sin(2 * angleSecond) + Mathf.Sin(2 * angleThird));
+        //circumcenterX /= (Mathf.Sin(2 * angleFirst) + Mathf.Sin(2 * angleSecond) + Mathf.Sin(2 * angleThird));
+    }
+    public void Startv2() {
+        isActive = true;
         StartCoroutine(BowyerWatsonv2());
 
     }

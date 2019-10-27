@@ -137,7 +137,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 100000, guid: 3681543e5b0f59742b73073cb379cdc6, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 400000, guid: 3681543e5b0f59742b73073cb379cdc6, type: 3}
       propertyPath: m_LocalPosition.x
@@ -228,6 +228,7 @@ MonoBehaviour:
   - {x: -0.2, y: 0.1, z: 0}
   _verticePrefab: {fileID: 8807945969039277128, guid: db65332d1ff6bd345bf89a5a1d915005,
     type: 3}
+  isActive: 0
   _speedConstructionMesh: 0.3
 --- !u!4 &558580332
 Transform:
@@ -530,6 +531,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   materialDebris: {fileID: 0}
+  _verticePrefab: {fileID: 0}
 --- !u!65 &1461498309
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -753,7 +755,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1832996173}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -16.42, y: 2.74, z: -0.44419396}
+  m_LocalPosition: {x: 0, y: 2.42, z: 0}
   m_LocalScale: {x: 5, y: 5, z: 5}
   m_Children: []
   m_Father: {fileID: 0}
@@ -772,3 +774,5 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   materialDebris: {fileID: 10652, guid: 0000000000000000f000000000000000, type: 0}
+  _verticePrefab: {fileID: 8807945969039277128, guid: db65332d1ff6bd345bf89a5a1d915005,
+    type: 3}
