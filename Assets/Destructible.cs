@@ -3,6 +3,57 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
+public class VerticeCoverHole{
+
+    public VerticeCoverHole(Vector3 _position) {
+        position = _position;
+        previouslyConnected = new List<Vector3>();
+    }
+    public Vector3 position;
+
+    public List<Vector3> previouslyConnected;
+    public int index;
+}
+
+public class VerticeMesh {
+
+    public VerticeMesh(Vector3 _position, int _indexMesh) {
+        position = _position;
+        indexMesh = _indexMesh;
+        triangles = new List<TriangleMesh>();
+        toBeDeleted = false;
+    }
+    public int indexMesh;
+
+    public Vector3 position;
+
+    public List<TriangleMesh> triangles;
+
+    public bool toBeDeleted;
+
+    override public string ToString() {
+        return "Index: " + indexMesh + " - Position: " + position + " - Num triangles: " + triangles.Count;
+    }
+}
+
+public class TriangleMesh {
+    public TriangleMesh(VerticeMesh _first, VerticeMesh _second, VerticeMesh _third, int _indexMesh) {
+        first = _first;
+        second = _second;
+        third = _third;
+        indexMesh = _indexMesh;
+    }
+
+    public int indexMesh;
+    public VerticeMesh first;
+    public VerticeMesh second;
+    public VerticeMesh third;
+}
+
+
+public class MeshModificationInfo {
+
+}
 public class Destructible : MonoBehaviour
 {
     // Start is called before the first frame update
@@ -10,18 +61,164 @@ public class Destructible : MonoBehaviour
     [SerializeField] private Material materialDebris;
     [SerializeField] private GameObject _verticePrefab;
     private Mesh mesh;
+
+    private List<VerticeMesh> verticesMesh;
+    private List<TriangleMesh> trianglesMesh;
+
     void Start()
     {
         mesh = GetComponent<MeshFilter>().mesh;
+        ConvertMeshToVerticesAndTriangles(mesh);
     }
 
-    // Update is called once per frame
-    void Update()
-    {
-        
+    public void ConvertMeshToVerticesAndTriangles(Mesh mesh)  {
+        List<Vector3> vertices = new List<Vector3>();
+        List<int> triangles = new List<int>();
+        mesh.GetVertices(vertices);
+        mesh.GetTriangles(triangles, 0);
+        verticesMesh = new List<VerticeMesh>();
+        trianglesMesh = new List<TriangleMesh>();
+
+
+        for (int i = 0; i < vertices.Count; i++) {
+            verticesMesh.Add(new VerticeMesh(vertices[i], i));
+        }
+
+        for (int i = 0; i < triangles.Count; i+=3) {
+            TriangleMesh newTriangleMesh = new TriangleMesh(verticesMesh[triangles[i]], verticesMesh[triangles[i + 1]], verticesMesh[triangles[i + 2]], i);
+            trianglesMesh.Add(newTriangleMesh);
+            verticesMesh[triangles[i]].triangles.Add(newTriangleMesh);
+            verticesMesh[triangles[i + 1]].triangles.Add(newTriangleMesh);
+            verticesMesh[triangles[i + 2]].triangles.Add(newTriangleMesh);
+        }
     }
 
     public void Destruction(Vector3 impact, float radiusExplosion, Vector3 impactDir) {
+        
+        // -- START VERTICE DELETION --
+        for (int i = 0; i < verticesMesh.Count; i++) {
+            verticesMesh[i].toBeDeleted = Vector3.Distance(verticesMesh[i].position * transform.localScale.x, impact - transform.position) < radiusExplosion;
+        }
+
+        List<VerticeMesh> verticesToBeDeleted = verticesMesh.FindAll(verticeMesh => verticeMesh.toBeDeleted == true);
+        int numVerticesToBeDeleted = 0;
+        int numTrianglesToBeDeleted = 0;
+        List<VerticeMesh> verticesEdgeHole = new List<VerticeMesh>();
+
+        for (int i = 0; i < verticesToBeDeleted.Count; i++) {
+            List<TriangleMesh> trianglesToCheck = verticesToBeDeleted[i].triangles;
+
+            while (trianglesToCheck.Count > 0) {
+                TriangleMesh triangle = trianglesToCheck[0];
+
+                if (triangle.first.toBeDeleted) {
+                    triangle.first.triangles.Remove(triangle);
+                }
+                else {
+                    if (!verticesEdgeHole.Exists(verticeEdgeHole => verticeEdgeHole == triangle.first)) {
+                        verticesEdgeHole.Add(triangle.first);
+                    }
+                }
+                if (triangle.second.toBeDeleted) {
+                    triangle.second.triangles.Remove(triangle);
+                }
+                else {
+                    if (!verticesEdgeHole.Exists(verticeEdgeHole => verticeEdgeHole == triangle.second)) {
+                        verticesEdgeHole.Add(triangle.second);
+                    }
+                }
+                if (triangle.third.toBeDeleted) {
+                    triangle.third.triangles.Remove(triangle);
+                }
+                else {
+                    if (!verticesEdgeHole.Exists(verticeEdgeHole => verticeEdgeHole == triangle.third)) {
+                        verticesEdgeHole.Add(triangle.third);
+                    }
+                }
+                trianglesMesh.Remove(triangle);
+                numTrianglesToBeDeleted++;
+            }
+        }
+
+        numVerticesToBeDeleted = verticesMesh.RemoveAll(verticeMesh => verticeMesh.toBeDeleted == true);
+        //Debug.Log("numVerticesToBeDeleted: " + numVerticesToBeDeleted);
+
+        int indexVerticeMesh = 0;
+        verticesMesh.ForEach(verticeMesh => verticeMesh.indexMesh = indexVerticeMesh++);
+        //trianglesMesh.ForEach(trianglesMesh => trianglesMesh.indexMesh -= numTrianglesToBeDeleted * 3);
+
+        //Debug.Log("verticesMesh.Count: " + verticesMesh.Count);
+
+
+
+        // ---- END VERTICE DELETION ----
+        //verticesEdgeHole
+        //verticesMesh
+        //trianglesMesh
+
+        // START BOWYER WATSON WITH EDGE VERTICES AND VERTICES GENERATED
+
+        Vector3 firstVectorPlane = Vector3.Cross(impactDir, Vector3.up);
+        Vector3 secondVectorPlane = Vector3.Cross(impactDir, firstVectorPlane);
+
+        //Pass Vector3 vertices to Vertice and change direction of vertices to recreate explosion (going inside model)
+        List<Vertice> verticeForTriangulation = new List<Vertice>();
+
+        verticesEdgeHole.ForEach(verticeEdgeHole => {
+            verticeForTriangulation.Add(new Vertice(verticeEdgeHole.position, verticeEdgeHole.indexMesh));
+        });
+
+        Debug.Log("Start Bowyer Watson with " +  verticeForTriangulation.Count);
+        List<Triangle> triangulation = BowyerWatsonv3(verticeForTriangulation, new Plane(firstVectorPlane, secondVectorPlane));
+
+        Debug.Log("Triangles created: " +  triangulation.Count);
+
+        // ---- END BOWYER WATSON WITH EDGE VERTICES AND VERTICES GENERATED ----
+
+       // START CONVERTING VERTICE AND TRIANGLE DESTRUCTION + RECONSTRUCTION WITH BOWYER-WATSON TO MESH
+        triangulation.ForEach(triangleTriangulation => {
+            VerticeMesh first = verticesMesh[triangleTriangulation.first.origin.index];
+            VerticeMesh second = verticesMesh[triangleTriangulation.second.origin.index];
+            VerticeMesh third = verticesMesh[triangleTriangulation.third.origin.index];
+            trianglesMesh.Add(new TriangleMesh(first, second, third, -1));
+        });
+
+        List<Vector3> verticesFinal = new List<Vector3>();
+        List<int> trianglesFinal = new List<int>();
+
+        verticesMesh.ForEach(verticeMesh => {
+            verticesFinal.Add(verticeMesh.position);
+        });
+
+
+
+        trianglesMesh.ForEach(triangleMesh => {
+            trianglesFinal.Add(triangleMesh.first.indexMesh);
+            trianglesFinal.Add(triangleMesh.second.indexMesh);
+            trianglesFinal.Add(triangleMesh.third.indexMesh);
+        });
+
+        mesh.Clear();
+        mesh.vertices = verticesFinal.ToArray();
+        mesh.triangles = trianglesFinal.ToArray();
+
+
+        mesh.RecalculateBounds();
+        mesh.RecalculateNormals();
+        mesh.RecalculateTangents();
+
+       // ---- END CONVERTING VERTICE AND TRIANGLE DESTRUCTION + RECONSTRUCTION WITH BOWYER-WATSON TO MESH ----
+
+
+
+
+
+        Debug.Log("Vertices removed: ");
+
+    }
+
+
+    public void DestructionOld(Vector3 impact, float radiusExplosion, Vector3 impactDir) {
         List<Vector3> vertices = new List<Vector3>();
         List<int> triangles = new List<int>();
         List<Vector3> verticesRemoved = new List<Vector3>();
@@ -37,7 +234,7 @@ public class Destructible : MonoBehaviour
         Debug.DrawLine(Camera.main.transform.position, impact, Color.white, 1.0f);
         Debug.DrawLine(transform.transform.position, impact, Color.white, 1.0f);
 
-        List<Vector3> verticesCoverHole = new List<Vector3>();
+        List<VerticeCoverHole> verticesCoverHole = new List<VerticeCoverHole>();
         for (int verticesIndex = 0; verticesIndex < vertices.Count; verticesIndex++) {
             Debug.Log("Distance("+vertices[verticesIndex]+" y "+(impact - transform.transform.position)+"): " + Vector3.Distance(vertices[verticesIndex], impact - transform.transform.position));
             if (Vector3.Distance(vertices[verticesIndex] * transform.localScale.x, impact - transform.transform.position) < radiusExplosion) {
@@ -46,7 +243,9 @@ public class Destructible : MonoBehaviour
                 
                 //Debug.Log("Triangles left: " + (triangles.Count / 3));
                 bool isVerticeImpactAdded = false;
+                VerticeCoverHole verticeBorderImpact = new VerticeCoverHole(new Vector3(0,0,0));
                 for (int trianglesIndex = 0; trianglesIndex < triangles.Count; trianglesIndex++) {
+                    
                     
                     //Debug.Log("Index triangle: " + trianglesIndex);
                     if(triangles[trianglesIndex] == verticesIndex) {
@@ -73,7 +272,10 @@ public class Destructible : MonoBehaviour
                         }
 
                         if (verticesDeletedFromTriangle.Count == 1 && !isVerticeImpactAdded) {
-                            Vector3 verticeBorderImpact = verticesDeletedFromTriangle[0];
+                            //Vector3 verticeBorderImpact = verticesDeletedFromTriangle[0];
+                            verticeBorderImpact.position = verticesDeletedFromTriangle[0];
+                            Debug.Log("NOT CONNECTED: " + verticesNotDeletedFromTriangle.Count);
+                            verticeBorderImpact.previouslyConnected.Concat(verticesNotDeletedFromTriangle);
                             isVerticeImpactAdded = true;
                             //Vector3 directionToImpact = impact - verticeBorderImpact;
                             //directionToImpact = new Vector3(directionToImpact.x,directionToImpact.y,0); //we dont want "going back" to the impact
@@ -81,6 +283,15 @@ public class Destructible : MonoBehaviour
                             //verticeBorderImpact += impactDir + directionToImpact;
 
                             verticesCoverHole.Add(verticeBorderImpact);
+                        }
+                        else if (verticesDeletedFromTriangle.Count == 1 && isVerticeImpactAdded) {
+                            verticesNotDeletedFromTriangle.ForEach(verticeNotDeletedFromTriangle => {
+                                if (!verticeBorderImpact.previouslyConnected.Exists(verticeConnected => verticeConnected == verticeNotDeletedFromTriangle)) {
+                                    verticeBorderImpact.previouslyConnected.Add(verticeNotDeletedFromTriangle);
+                                }
+                            });
+                            
+                            
                         }
                         //Debug.Log("Triangles left: " + (triangles.Count / 3));
                                 //triangles.ForEach(triangle => {
@@ -117,14 +328,39 @@ public class Destructible : MonoBehaviour
         Vector3 firstVectorPlane = Vector3.Cross(impactDir, Vector3.up);
         Vector3 secondVectorPlane = Vector3.Cross(impactDir, firstVectorPlane);
 
+        //Pass Vector3 vertices to Vertice and change direction of vertices to recreate explosion (going inside model)
         List<Vertice> verticeForTriangulation = new List<Vertice>();
         int indexVertices = vertices.Count;
+        Vector3 dirHole = new Vector3();
         verticesCoverHole.ForEach(verticeCoverHole => {
-            verticeForTriangulation.Add(new Vertice(verticeCoverHole, indexVertices++));
+            dirHole += (verticeCoverHole.position - impact);
         });
+        dirHole /= verticesCoverHole.Count;
+        dirHole.Normalize();
+
+        verticesCoverHole.ForEach(verticeCoverHole => {
+            verticeCoverHole.position += dirHole * 0.1f;
+            verticeCoverHole.index = indexVertices;
+
+            verticeForTriangulation.Add(new Vertice(verticeCoverHole.position, indexVertices++));
+        });
+
+
+        //Restore triangles deleted from border of the hole
+        verticesCoverHole.ForEach(verticeCoverHole => {
+            Debug.Log("Restoring: " + verticeCoverHole.position + " with " + verticeCoverHole.previouslyConnected.Count);
+            for (int i= 0; i < (verticeCoverHole.previouslyConnected.Count - 1); i++ ) {
+                triangles.Add(verticeCoverHole.index);
+                triangles.Add(vertices.IndexOf(verticeCoverHole.previouslyConnected[i]));
+                triangles.Add(vertices.IndexOf(verticeCoverHole.previouslyConnected[i+1]));
+            }
+        });
+
         //verticeForTriangulation.Add(new Vertice((impact - transform.position) * 0.2f, indexVertices++));
         List<Triangle> trianglesHole = BowyerWatsonv3(verticeForTriangulation, new Plane(Vector3.Cross(impactDir, Vector3.up), Vector3.Cross(impactDir, firstVectorPlane)));
         Debug.Log("Triangles created: " +  trianglesHole.Count);
+
+
 
         //ConvertTrianglesToMeshVerticesAndTrianglesv1(trianglesHole, vertices, triangles);
         List<Vector3> verticesMesh = new List<Vector3>();
