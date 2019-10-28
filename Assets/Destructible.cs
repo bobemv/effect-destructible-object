@@ -45,7 +45,9 @@ public class Destructible : MonoBehaviour
                 Debug.Log("Quitando vertice: index " + verticesIndex + " value: " + vertices[verticesIndex]);
                 
                 //Debug.Log("Triangles left: " + (triangles.Count / 3));
+                bool isVerticeImpactAdded = false;
                 for (int trianglesIndex = 0; trianglesIndex < triangles.Count; trianglesIndex++) {
+                    
                     //Debug.Log("Index triangle: " + trianglesIndex);
                     if(triangles[trianglesIndex] == verticesIndex) {
                 //Debug.Log("Quitando triangulo: ");
@@ -70,8 +72,9 @@ public class Destructible : MonoBehaviour
 
                         }
 
-                        if (verticesDeletedFromTriangle.Count == 1) {
+                        if (verticesDeletedFromTriangle.Count == 1 && !isVerticeImpactAdded) {
                             Vector3 verticeBorderImpact = verticesDeletedFromTriangle[0];
+                            isVerticeImpactAdded = true;
                             //Vector3 directionToImpact = impact - verticeBorderImpact;
                             //directionToImpact = new Vector3(directionToImpact.x,directionToImpact.y,0); //we dont want "going back" to the impact
                             //directionToImpact.Normalize();
@@ -104,20 +107,34 @@ public class Destructible : MonoBehaviour
             //Debug.Log("Triangle: " + triangle);
         //});
 
-        Debug.Log("Vertices in hole: " + verticesCoverHole.Count);
-        for (int i = 0; i < verticesCoverHole.Count; i++) {
-            Debug.DrawLine(verticesCoverHole[i], verticesCoverHole[(i+1)%verticesCoverHole.Count], Color.white, 3);
-        }
+        //Debug.Log("Vertices in hole: " + verticesCoverHole.Count);
+        //for (int i = 0; i < verticesCoverHole.Count; i++) {
+            //Debug.DrawLine(verticesCoverHole[i], verticesCoverHole[(i+1)%verticesCoverHole.Count], Color.white, 3);
+        //}
         //GameObject.Find("CustomMesh").GetComponent<CustomMesh>().points = verticesCoverHole;
         //GameObject.Find("CustomMesh").GetComponent<CustomMesh>().Startv2();
-        List<Triangle> trianglesHole = BowyerWatson(verticesCoverHole, impact, impactDir);
+        //List<Triangle> trianglesHole = BowyerWatson(verticesCoverHole, impact, impactDir);
+        Vector3 firstVectorPlane = Vector3.Cross(impactDir, Vector3.up);
+        Vector3 secondVectorPlane = Vector3.Cross(impactDir, firstVectorPlane);
+
+        List<Vertice> verticeForTriangulation = new List<Vertice>();
+        int indexVertices = vertices.Count;
+        verticesCoverHole.ForEach(verticeCoverHole => {
+            verticeForTriangulation.Add(new Vertice(verticeCoverHole, indexVertices++));
+        });
+        //verticeForTriangulation.Add(new Vertice((impact - transform.position) * 0.2f, indexVertices++));
+        List<Triangle> trianglesHole = BowyerWatsonv3(verticeForTriangulation, new Plane(Vector3.Cross(impactDir, Vector3.up), Vector3.Cross(impactDir, firstVectorPlane)));
         Debug.Log("Triangles created: " +  trianglesHole.Count);
 
-        ConvertTrianglesToMeshVerticesAndTrianglesv1(trianglesHole, vertices, triangles);
+        //ConvertTrianglesToMeshVerticesAndTrianglesv1(trianglesHole, vertices, triangles);
+        List<Vector3> verticesMesh = new List<Vector3>();
+        List<int> trianglesMesh = new List<int>();
+        AddGeneratedVerticesAndTrianglesToMesh(mesh, verticesMesh, trianglesMesh, verticeForTriangulation, trianglesHole);
 
-        mesh.triangles = triangles.ToArray();
+        mesh.Clear();
+        mesh.vertices = vertices.ToList().Concat(verticesMesh).ToArray();
+        mesh.triangles = triangles.ToList().Concat(trianglesMesh).ToArray();
 
-        mesh.vertices = vertices.ToArray();
 
         mesh.RecalculateBounds();
         mesh.RecalculateNormals();
@@ -317,6 +334,192 @@ public class Destructible : MonoBehaviour
                 meshTriangles.Add(triangleGenerated.third.origin.index);
             }
         });
+    }
+
+     private void AddGeneratedVerticesAndTrianglesToMesh(Mesh mesh, List<Vector3> meshVertices, List<int> meshTriangles, List<Vertice> verticesGenerated, List<Triangle> trianglesGenerated) {
+   
+
+        
+        verticesGenerated.ForEach(verticeGenerated => {
+            meshVertices.Add(verticeGenerated.position);
+        });
+
+
+
+        trianglesGenerated.ForEach(triangleGenerated => {
+            meshTriangles.Add(triangleGenerated.first.origin.index);
+            meshTriangles.Add(triangleGenerated.second.origin.index);
+            meshTriangles.Add(triangleGenerated.third.origin.index);
+        });
+
+
+
+
+    }
+
+    private Vertice PointProjectedInPlane(Vertice point, Vector3 normalPlane) {
+        Vector3 origToPoint = point.position - new Vector3(0,0,0);
+        float d = Vector3.Dot(origToPoint, normalPlane);
+        return new Vertice(point.position - d * normalPlane, point.index);
+    }
+    private List<Triangle> BowyerWatsonv3(List<Vertice> vertices, Plane plane) {
+
+        List<Triangle> triangulation = new List<Triangle>();
+        Triangle superTriangle = GetSuperTrianglev3(plane);
+        triangulation.Add(superTriangle);
+        //points.ForEach(point => {
+        for (int verticesIndex = 0; verticesIndex < vertices.Count; verticesIndex++) {
+            Vertice verticeProjected= PointProjectedInPlane(vertices[verticesIndex], plane.normal);
+            //Vertice verticePoint = new Vertice(verticePosition, indexVertice++);
+            Instantiate(_verticePrefab, vertices[verticesIndex].position * transform.localScale.x + transform.position, Quaternion.identity);
+
+            List<Triangle> badTriangles = new List<Triangle>();
+            triangulation.ForEach(triangle => {
+                if (isPointInsideCircumcircleTrianglev4(verticeProjected.position, triangle)) {
+                    badTriangles.Add(triangle);
+                }
+            });
+
+
+            for (int badTriangleIndex = 0; badTriangleIndex < badTriangles.Count; badTriangleIndex++) {
+                triangulation.Remove(badTriangles[badTriangleIndex]);
+    
+            }
+            
+
+            List<Edge> polygon = new List<Edge>();
+            List<Edge> possibleNotSharedEdges = new List<Edge>();
+            badTriangles.ForEach(triangle => {
+                possibleNotSharedEdges.Add(triangle.first);
+                possibleNotSharedEdges.Add(triangle.second);
+                possibleNotSharedEdges.Add(triangle.third);
+            });
+
+            possibleNotSharedEdges.ForEach(possibleEdge => {
+                if (possibleNotSharedEdges.FindAll(edge => Edge.IsSameVertices(possibleEdge, edge)).Count() == 1) {
+                    //Debug.Log("Added to Polygon: o(" + possibleEdge.origin.position + ") e(" + possibleEdge.end.position);
+                    polygon.Add(possibleEdge);
+                }
+                else {
+                    //Debug.Log("NOT Added to Polygon: o(" + possibleEdge.origin.position + ") e(" + possibleEdge.end.position);
+                }
+            });
+
+
+            for (int polygonIndex = 0; polygonIndex < polygon.Count; polygonIndex++) {
+                Triangle newTri = new Triangle();
+                newTri.first = polygon[polygonIndex];
+                newTri.second = new Edge(verticeProjected, polygon[polygonIndex].origin);
+                newTri.third = new Edge(polygon[polygonIndex].end, verticeProjected);
+
+                Vector3 normal = Vector3.Cross(newTri.first.GetEdgeVector(), newTri.second.GetEdgeVector());
+
+                if (Vector3.Dot(normal, plane.normal) < 0) {
+                    Edge aux = newTri.first;
+                    newTri.first = newTri.third;
+                    newTri.third = aux;
+                }
+                triangulation.Add(newTri);
+    
+            }
+            
+
+        }
+
+
+        List<Triangle> finaltriangulation = new List<Triangle>();
+        triangulation.ForEach(triangle => {
+            if (!isSharedVerticeTrianglesv1(triangle, superTriangle)) {
+                finaltriangulation.Add(triangle);
+            }
+        });
+
+
+        triangulation = finaltriangulation;
+
+        Debug.Log("Triangulation: number triangles - " + triangulation.Count);
+
+        return triangulation;
+    }
+
+    private Triangle GetSuperTrianglev3(Plane plane) {
+        Triangle superTriangle = new Triangle();
+        Vertice firstVertice = new Vertice(plane.firstVector * 666, -1);
+        Vertice secondtVertice = new Vertice(plane.secondVector * 500 - plane.firstVector * 200, -1);
+        Vertice thirdVertice = new Vertice(-plane.secondVector * 500 - plane.firstVector * 200, -1);
+
+        superTriangle.first = new Edge(secondtVertice, firstVertice);
+        superTriangle.second = new Edge(firstVertice, thirdVertice);
+        superTriangle.third = new Edge(thirdVertice, secondtVertice);
+        return superTriangle;
+    }
+
+    private bool isPointInsideCircumcircleTrianglev3(Vector3 point, Triangle triangle) {
+                Vector3 ac = triangle.third.origin.position - triangle.first.origin.position;
+        Vector3 ab = triangle.second.origin.position - triangle.first.origin.position;
+        Vector3 abXac = Vector3.Cross(ab, ac);
+
+        Vector3 toCircumsphereCenter = (Vector3.Cross(abXac, ab) * len2(ac) + Vector3.Cross(abXac, ac) * len2(ab)) / (2f * len2(abXac));
+        float circumradius2 = toCircumsphereCenter.magnitude;
+        Vector3 circumcenter2 = triangle.first.origin.position + toCircumsphereCenter;
+
+        float angleFirst = Vector3.Angle(triangle.second.origin.position - triangle.first.origin.position, triangle.third.origin.position - triangle.first.origin.position);
+        float angleSecond = Vector3.Angle(triangle.first.origin.position - triangle.second.origin.position, triangle.third.origin.position - triangle.second.origin.position);
+        float angleThird = Vector3.Angle(triangle.first.origin.position - triangle.third.origin.position, triangle.second.origin.position - triangle.third.origin.position);
+        angleFirst *= Mathf.Deg2Rad;
+        angleSecond *= Mathf.Deg2Rad;
+        angleThird *= Mathf.Deg2Rad;
+
+        float circumcenterX = triangle.first.origin.position.x * Mathf.Sin(2 * angleFirst) + triangle.second.origin.position.x * Mathf.Sin(2 * angleSecond) + triangle.third.origin.position.x * Mathf.Sin(2 * angleThird);
+        float circumcenterY = triangle.first.origin.position.y * Mathf.Sin(2 * angleFirst) + triangle.second.origin.position.y * Mathf.Sin(2 * angleSecond) + triangle.third.origin.position.y * Mathf.Sin(2 * angleThird);
+        float circumcenterZ = triangle.first.origin.position.z * Mathf.Sin(2 * angleFirst) + triangle.second.origin.position.z * Mathf.Sin(2 * angleSecond) + triangle.third.origin.position.z * Mathf.Sin(2 * angleThird);
+
+        Vector3 circumcenter = new Vector3(circumcenterX, circumcenterY, circumcenterZ) / (Mathf.Sin(2 * angleFirst) + Mathf.Sin(2 * angleSecond) + Mathf.Sin(2 * angleThird));
+
+        float radiusFirst = triangle.first.MagnitudeEdge();
+        float radiusSecond = triangle.second.MagnitudeEdge();
+        float radiusThird = triangle.third.MagnitudeEdge();
+        
+        float circumradius = radiusFirst * radiusSecond * radiusThird / Mathf.Sqrt((radiusFirst + radiusSecond + radiusThird) * (radiusSecond + radiusThird - radiusFirst) * (radiusThird + radiusFirst - radiusSecond) * (radiusFirst + radiusSecond - radiusThird));
+        
+        float distancePointToCircumcenter = Vector3.Distance(point, circumcenter);
+        Debug.Log("v3 Circumcenter: " + circumcenter + " Radius: " + circumradius + " Distance: " + distancePointToCircumcenter);
+        Debug.Log("v4 Circumcenter: " + circumcenter2 + " Radius: " + circumradius2 );
+        bool isPointInside = distancePointToCircumcenter < circumradius;
+
+        if (isPointInside) {
+            //DrawCircle(circumcenter, circumradius, 100);
+        }
+        return isPointInside;
+        
+        //circumcenterX /= (Mathf.Sin(2 * angleFirst) + Mathf.Sin(2 * angleSecond) + Mathf.Sin(2 * angleThird));
+        //circumcenterX /= (Mathf.Sin(2 * angleFirst) + Mathf.Sin(2 * angleSecond) + Mathf.Sin(2 * angleThird));
+    }
+
+    private bool isPointInsideCircumcircleTrianglev4(Vector3 point, Triangle triangle) {
+        Vector3 ac = triangle.third.origin.position - triangle.first.origin.position;
+        Vector3 ab = triangle.second.origin.position - triangle.first.origin.position;
+        Vector3 abXac = Vector3.Cross(ab, ac);
+
+        Vector3 toCircumsphereCenter = (Vector3.Cross(abXac, ab) * len2(ac) + Vector3.Cross(ac, abXac) * len2(ab)) / (2f * len2(abXac));
+        float circumradius = toCircumsphereCenter.magnitude;
+        Vector3 circumcenter = triangle.first.origin.position + toCircumsphereCenter;
+
+        float distancePointToCircumcenter = Vector3.Distance(point, circumcenter);
+        //Debug.Log("Circumcenter: " + circumcenter + " Radius: " + circumradius + " Distance: " + distancePointToCircumcenter);
+        bool isPointInside = distancePointToCircumcenter < circumradius;
+
+        if (isPointInside) {
+            //DrawCircle(circumcenter, circumradius, 100);
+        }
+        return isPointInside;
+        
+        //circumcenterX /= (Mathf.Sin(2 * angleFirst) + Mathf.Sin(2 * angleSecond) + Mathf.Sin(2 * angleThird));
+        //circumcenterX /= (Mathf.Sin(2 * angleFirst) + Mathf.Sin(2 * angleSecond) + Mathf.Sin(2 * angleThird));
+    }
+
+    private float len2(Vector3 v) {
+        return v.x*v.x + v.y*v.y + v.z*v.z;
     }
 
 }

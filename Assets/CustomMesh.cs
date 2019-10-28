@@ -33,7 +33,31 @@ public class Edge {
         return (e1.origin.position == e2.origin.position || e1.origin.position == e2.end.position) && (e1.end.position == e2.origin.position || e1.end.position == e2.end.position);
     }
 }
+/*
+-2.67 0.73 -1.76
+-1.2 0.95 -1.5
+-0.85 0.84 -1.65
+-0.4 0.76 -1.73
+-1.20 4.04 -1.5
+-0.85 4.15 -1.66
+-0.4 4.23 -1.74
+-1.54 1.299 -1.54
+-1.65 1.64 -1.65
+-1.55 3.7 -1.54
+-2.06 2.49 -1.405
+1.405 2.49 -2.06
+-9.05 3.9 -2.06
+-2.02 2.04 -1.37
+-2.03 2.94 -1.38
+0.87 1.18 -1.93
+0.919 1.58 -2.12
+0.45 3.87 -2.034
+0.92 3.41 -2.12
+0.96 2.96 -2.25
+-0.5 2.43 -2.43
 
+
+ */
 public class Triangle {
     public Edge first;
     public Edge second;
@@ -82,7 +106,7 @@ public class CustomMesh : MonoBehaviour
     private int indexVertice = 0;
     public bool isActive = false;
     void Start() {
-        Startv3();
+        //Startv3();
         /* 
         points = new List<Vector3>();
 
@@ -95,7 +119,13 @@ public class CustomMesh : MonoBehaviour
         for (int i = 0; i < 1; i++) {
             points.Add(new Vector3(Random.Range(0, 0.1f), 0, 0.4f ));
         }*/
-        //Startv2();
+        Startv3();
+    }
+
+    void Update() {
+        if (isActive) {
+            Updatev2();
+        }
     }
 
    
@@ -278,8 +308,8 @@ public class CustomMesh : MonoBehaviour
             for (int polygonIndex = 0; polygonIndex < polygon.Count; polygonIndex++) {
                 Triangle newTri = new Triangle();
                 newTri.first = polygon[polygonIndex];
-                newTri.second = new Edge(vertices[verticesIndex], polygon[polygonIndex].origin);
-                newTri.third = new Edge(polygon[polygonIndex].end, vertices[verticesIndex]);
+                newTri.second = new Edge(verticeProjected, polygon[polygonIndex].origin);
+                newTri.third = new Edge(polygon[polygonIndex].end, verticeProjected);
 
                 Vector3 normal = Vector3.Cross(newTri.first.GetEdgeVector(), newTri.second.GetEdgeVector());
 
@@ -604,9 +634,9 @@ public class CustomMesh : MonoBehaviour
 
     private Triangle GetSuperTrianglev1(List<Vector3> points) {
         superTriangle = new Triangle();
-        Vertice firstVertice = new Vertice(new Vector3(0, 3.4f, 0), indexVertice++);
-        Vertice secondtVertice = new Vertice(new Vector3(-3.7f, -3.4f, 0), indexVertice++);
-        Vertice thirdVertice = new Vertice(new Vector3(3.7f, -3.4f, 0), indexVertice++);
+        Vertice firstVertice = new Vertice(new Vector3(0, 30.4f, 0), indexVertice++);
+        Vertice secondtVertice = new Vertice(new Vector3(-30.7f, -30.4f, 0), indexVertice++);
+        Vertice thirdVertice = new Vertice(new Vector3(30.7f, -30.4f, 0), indexVertice++);
 
         superTriangle.first = new Edge(secondtVertice, firstVertice);
         superTriangle.second = new Edge(firstVertice, thirdVertice);
