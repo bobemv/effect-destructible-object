@@ -62,13 +62,17 @@ public class Destructible : MonoBehaviour
     [SerializeField] private GameObject _verticePrefab;
     private Mesh mesh;
 
-    private List<VerticeMesh> verticesMesh;
-    private List<TriangleMesh> trianglesMesh;
+    private List<VerticeMesh> verticesMesh = new List<VerticeMesh>();
+    private List<TriangleMesh> trianglesMesh = new List<TriangleMesh>();
 
     void Start()
     {
         mesh = GetComponent<MeshFilter>().mesh;
         ConvertMeshToVerticesAndTriangles(mesh);
+    }
+
+    void Update() {
+        Convert();
     }
 
     public void ConvertMeshToVerticesAndTriangles(Mesh mesh)  {
@@ -94,6 +98,8 @@ public class Destructible : MonoBehaviour
     }
 
     public void Destruction(Vector3 impact, float radiusExplosion, Vector3 impactDir) {
+
+        //ConvertMeshToVerticesAndTriangles(mesh);
         
         // -- START VERTICE DELETION --
         for (int i = 0; i < verticesMesh.Count; i++) {
@@ -141,13 +147,10 @@ public class Destructible : MonoBehaviour
         }
 
         numVerticesToBeDeleted = verticesMesh.RemoveAll(verticeMesh => verticeMesh.toBeDeleted == true);
-        //Debug.Log("numVerticesToBeDeleted: " + numVerticesToBeDeleted);
 
         int indexVerticeMesh = 0;
         verticesMesh.ForEach(verticeMesh => verticeMesh.indexMesh = indexVerticeMesh++);
-        //trianglesMesh.ForEach(trianglesMesh => trianglesMesh.indexMesh -= numTrianglesToBeDeleted * 3);
 
-        //Debug.Log("verticesMesh.Count: " + verticesMesh.Count);
 
 
 
@@ -156,40 +159,97 @@ public class Destructible : MonoBehaviour
         //verticesMesh
         //trianglesMesh
 
+        // START CREATING HOLE VERTICES
+        Vector3 dirHole = new Vector3(0,0,0);
+        Vector3 impactScaled = impact * 0.2f;
+        verticesEdgeHole.ForEach(verticeEdgeHole => {
+            dirHole += (verticeEdgeHole.position - impactScaled);
+        });
+        dirHole /= verticesEdgeHole.Count;
+        dirHole.Normalize();
+
+        Vector3 pointToConverge = dirHole * (radiusExplosion / transform.localScale.x) * 0.3f;
+
+        List<VerticeMesh> layerHole = new List<VerticeMesh>();
+        List<VerticeMesh> newLayerHole = new List<VerticeMesh>();
+        List<VerticeMesh> verticesHole = new List<VerticeMesh>();
+
+        layerHole = verticesEdgeHole;
+        verticesEdgeHole.ForEach(verticeEdgeHole => {
+            verticeEdgeHole.position = Vector3.Lerp(verticeEdgeHole.position, pointToConverge, (Random.Range(0, 0.9f)));
+        });
+        for (int i = 2; i < 2; i++) {
+            for (int j = 0; j < layerHole.Count; j++) {
+                if (j % i == 0) {
+                    VerticeMesh verticeMesh = new VerticeMesh(Vector3.Lerp(layerHole[j].position, pointToConverge, i * (0.20f + Random.Range(-0.02f, 0.02f))) ,indexVerticeMesh++);
+                    newLayerHole.Add(verticeMesh);
+                }
+                
+            }
+            verticesHole = verticesHole.Concat(newLayerHole).ToList();
+            layerHole = newLayerHole;
+            newLayerHole = new List<VerticeMesh>();
+        }
+
+        verticesMesh = verticesMesh.Concat(verticesHole).ToList();
+        verticesHole = verticesHole.Concat(verticesEdgeHole).ToList();
+
+        // ---- END CREATING HOLE VERTICES ----
+
         // START BOWYER WATSON WITH EDGE VERTICES AND VERTICES GENERATED
+
+
 
         Vector3 firstVectorPlane = Vector3.Cross(impactDir, Vector3.up);
         Vector3 secondVectorPlane = Vector3.Cross(impactDir, firstVectorPlane);
-
-        //Pass Vector3 vertices to Vertice and change direction of vertices to recreate explosion (going inside model)
+        Plane plane = new Plane(firstVectorPlane, secondVectorPlane);
+        plane.DrawPlane(impact, 5f, 10f);
+        //plane.normal = dirHole;
         List<Vertice> verticeForTriangulation = new List<Vertice>();
 
-        verticesEdgeHole.ForEach(verticeEdgeHole => {
-            verticeForTriangulation.Add(new Vertice(verticeEdgeHole.position, verticeEdgeHole.indexMesh));
+        List<Vector3> pointsToCustomMesh = new List<Vector3>();
+
+        verticesHole.ForEach(verticeHole => {
+            verticeForTriangulation.Add(new Vertice(verticeHole.position, verticeHole.indexMesh));
+            pointsToCustomMesh.Add(verticeHole.position);
         });
 
-        Debug.Log("Start Bowyer Watson with " +  verticeForTriangulation.Count);
-        List<Triangle> triangulation = BowyerWatsonv3(verticeForTriangulation, new Plane(firstVectorPlane, secondVectorPlane));
-
-        Debug.Log("Triangles created: " +  triangulation.Count);
+        GameObject.Find("CustomMesh").GetComponent<CustomMesh>().points = pointsToCustomMesh;
+        GameObject.Find("CustomMesh").GetComponent<CustomMesh>().plane = plane;
+        GameObject.Find("CustomMesh").GetComponent<CustomMesh>().Startv2();
+        
+        //StartCoroutine(BowyerWatsonv3(verticeForTriangulation, plane));
 
         // ---- END BOWYER WATSON WITH EDGE VERTICES AND VERTICES GENERATED ----
 
        // START CONVERTING VERTICE AND TRIANGLE DESTRUCTION + RECONSTRUCTION WITH BOWYER-WATSON TO MESH
-        triangulation.ForEach(triangleTriangulation => {
-            VerticeMesh first = verticesMesh[triangleTriangulation.first.origin.index];
-            VerticeMesh second = verticesMesh[triangleTriangulation.second.origin.index];
-            VerticeMesh third = verticesMesh[triangleTriangulation.third.origin.index];
-            trianglesMesh.Add(new TriangleMesh(first, second, third, -1));
-        });
+        
 
+
+       // ---- END CONVERTING VERTICE AND TRIANGLE DESTRUCTION + RECONSTRUCTION WITH BOWYER-WATSON TO MESH ----
+
+
+    }
+
+    public void Convert() {
+        List<TriangleMesh> trianglesMeshv2 = trianglesMesh;
+        List<VerticeMesh> verticesMeshv2 = verticesMesh;
+            triangulation.ForEach(triangleTriangulation => {
+            if (triangleTriangulation.first.origin.index < 0 || triangleTriangulation.second.origin.index < 0 || triangleTriangulation.third.origin.index < 0) {
+                return;
+            }
+            VerticeMesh first = verticesMeshv2.Find(verticeMesh => verticeMesh.indexMesh == triangleTriangulation.first.origin.index);
+            VerticeMesh second = verticesMeshv2.Find(verticeMesh => verticeMesh.indexMesh == triangleTriangulation.second.origin.index);
+            VerticeMesh third = verticesMeshv2.Find(verticeMesh => verticeMesh.indexMesh == triangleTriangulation.third.origin.index);
+            trianglesMeshv2.Add(new TriangleMesh(first, second, third, -1));
+        });
         List<Vector3> verticesFinal = new List<Vector3>();
         List<int> trianglesFinal = new List<int>();
 
+        Vector3[] vert = new Vector3[verticesMesh.Count()];
         verticesMesh.ForEach(verticeMesh => {
-            verticesFinal.Add(verticeMesh.position);
+            vert[verticeMesh.indexMesh] = verticeMesh.position;
         });
-
 
 
         trianglesMesh.ForEach(triangleMesh => {
@@ -199,22 +259,13 @@ public class Destructible : MonoBehaviour
         });
 
         mesh.Clear();
-        mesh.vertices = verticesFinal.ToArray();
+        mesh.vertices = vert;
         mesh.triangles = trianglesFinal.ToArray();
 
 
         mesh.RecalculateBounds();
         mesh.RecalculateNormals();
         mesh.RecalculateTangents();
-
-       // ---- END CONVERTING VERTICE AND TRIANGLE DESTRUCTION + RECONSTRUCTION WITH BOWYER-WATSON TO MESH ----
-
-
-
-
-
-        Debug.Log("Vertices removed: ");
-
     }
 
 
@@ -356,16 +407,18 @@ public class Destructible : MonoBehaviour
             }
         });
 
+
+
         //verticeForTriangulation.Add(new Vertice((impact - transform.position) * 0.2f, indexVertices++));
-        List<Triangle> trianglesHole = BowyerWatsonv3(verticeForTriangulation, new Plane(Vector3.Cross(impactDir, Vector3.up), Vector3.Cross(impactDir, firstVectorPlane)));
-        Debug.Log("Triangles created: " +  trianglesHole.Count);
+        //List<Triangle> trianglesHole = BowyerWatsonv3(verticeForTriangulation, new Plane(Vector3.Cross(impactDir, Vector3.up), Vector3.Cross(impactDir, firstVectorPlane)));
+        //Debug.Log("Triangles created: " +  trianglesHole.Count);
 
 
 
         //ConvertTrianglesToMeshVerticesAndTrianglesv1(trianglesHole, vertices, triangles);
         List<Vector3> verticesMesh = new List<Vector3>();
         List<int> trianglesMesh = new List<int>();
-        AddGeneratedVerticesAndTrianglesToMesh(mesh, verticesMesh, trianglesMesh, verticeForTriangulation, trianglesHole);
+        //AddGeneratedVerticesAndTrianglesToMesh(mesh, verticesMesh, trianglesMesh, verticeForTriangulation, trianglesHole);
 
         mesh.Clear();
         mesh.vertices = vertices.ToList().Concat(verticesMesh).ToArray();
@@ -598,25 +651,38 @@ public class Destructible : MonoBehaviour
         float d = Vector3.Dot(origToPoint, normalPlane);
         return new Vertice(point.position - d * normalPlane, point.index);
     }
-    private List<Triangle> BowyerWatsonv3(List<Vertice> vertices, Plane plane) {
 
-        List<Triangle> triangulation = new List<Triangle>();
+    List<Triangle> triangulation = new List<Triangle>();
+    [SerializeField] float  _speedConstructionMesh;
+    private IEnumerator BowyerWatsonv3(List<Vertice> vertices, Plane plane) {
+
+         triangulation = new List<Triangle>();
+        List<Vector3> pointsToCustomMesh = new List<Vector3>();
         Triangle superTriangle = GetSuperTrianglev3(plane);
         triangulation.Add(superTriangle);
+        yield return new WaitForSeconds(_speedConstructionMesh);
         //points.ForEach(point => {
         for (int verticesIndex = 0; verticesIndex < vertices.Count; verticesIndex++) {
             Vertice verticeProjected= PointProjectedInPlane(vertices[verticesIndex], plane.normal);
+            //vertices[verticesIndex].position = verticeProjected.position;
             //Vertice verticePoint = new Vertice(verticePosition, indexVertice++);
             Instantiate(_verticePrefab, vertices[verticesIndex].position * transform.localScale.x + transform.position, Quaternion.identity);
-
+            yield return new WaitForSeconds(_speedConstructionMesh);
+            pointsToCustomMesh.Add(verticeProjected.position);
             List<Triangle> badTriangles = new List<Triangle>();
             triangulation.ForEach(triangle => {
                 if (isPointInsideCircumcircleTrianglev4(verticeProjected.position, triangle)) {
+                        //Debug.DrawLine(vertices[verticesIndex].position * transform.localScale.x + transform.position, circumcenter * transform.localScale.x + transform.position, Color.green, 1f);
+
                     badTriangles.Add(triangle);
+                }
+                else {
+                        //Debug.DrawLine(vertices[verticesIndex].position * transform.localScale.x + transform.position, circumcenter * transform.localScale.x + transform.position, Color.red, 1f);
+
                 }
             });
 
-
+            yield return new WaitForSeconds(_speedConstructionMesh);
             for (int badTriangleIndex = 0; badTriangleIndex < badTriangles.Count; badTriangleIndex++) {
                 triangulation.Remove(badTriangles[badTriangleIndex]);
     
@@ -641,7 +707,7 @@ public class Destructible : MonoBehaviour
                 }
             });
 
-
+            yield return new WaitForSeconds(_speedConstructionMesh);
             for (int polygonIndex = 0; polygonIndex < polygon.Count; polygonIndex++) {
                 Triangle newTri = new Triangle();
                 newTri.first = polygon[polygonIndex];
@@ -656,11 +722,13 @@ public class Destructible : MonoBehaviour
                     newTri.third = aux;
                 }
                 triangulation.Add(newTri);
+                yield return new WaitForSeconds(_speedConstructionMesh);
     
             }
             
 
         }
+        yield return new WaitForSeconds(_speedConstructionMesh);
 
 
         List<Triangle> finaltriangulation = new List<Triangle>();
@@ -674,8 +742,13 @@ public class Destructible : MonoBehaviour
         triangulation = finaltriangulation;
 
         Debug.Log("Triangulation: number triangles - " + triangulation.Count);
+        yield return new WaitForSeconds(_speedConstructionMesh);
 
-        return triangulation;
+        GameObject.Find("CustomMesh").GetComponent<CustomMesh>().points = pointsToCustomMesh;
+        GameObject.Find("CustomMesh").GetComponent<CustomMesh>().plane = plane;
+        GameObject.Find("CustomMesh").GetComponent<CustomMesh>().Startv2();
+
+        //return triangulation;
     }
 
     private Triangle GetSuperTrianglev3(Plane plane) {
@@ -691,14 +764,6 @@ public class Destructible : MonoBehaviour
     }
 
     private bool isPointInsideCircumcircleTrianglev3(Vector3 point, Triangle triangle) {
-                Vector3 ac = triangle.third.origin.position - triangle.first.origin.position;
-        Vector3 ab = triangle.second.origin.position - triangle.first.origin.position;
-        Vector3 abXac = Vector3.Cross(ab, ac);
-
-        Vector3 toCircumsphereCenter = (Vector3.Cross(abXac, ab) * len2(ac) + Vector3.Cross(abXac, ac) * len2(ab)) / (2f * len2(abXac));
-        float circumradius2 = toCircumsphereCenter.magnitude;
-        Vector3 circumcenter2 = triangle.first.origin.position + toCircumsphereCenter;
-
         float angleFirst = Vector3.Angle(triangle.second.origin.position - triangle.first.origin.position, triangle.third.origin.position - triangle.first.origin.position);
         float angleSecond = Vector3.Angle(triangle.first.origin.position - triangle.second.origin.position, triangle.third.origin.position - triangle.second.origin.position);
         float angleThird = Vector3.Angle(triangle.first.origin.position - triangle.third.origin.position, triangle.second.origin.position - triangle.third.origin.position);
@@ -720,7 +785,6 @@ public class Destructible : MonoBehaviour
         
         float distancePointToCircumcenter = Vector3.Distance(point, circumcenter);
         Debug.Log("v3 Circumcenter: " + circumcenter + " Radius: " + circumradius + " Distance: " + distancePointToCircumcenter);
-        Debug.Log("v4 Circumcenter: " + circumcenter2 + " Radius: " + circumradius2 );
         bool isPointInside = distancePointToCircumcenter < circumradius;
 
         if (isPointInside) {
@@ -732,6 +796,7 @@ public class Destructible : MonoBehaviour
         //circumcenterX /= (Mathf.Sin(2 * angleFirst) + Mathf.Sin(2 * angleSecond) + Mathf.Sin(2 * angleThird));
     }
 
+    Vector3 circumcenter;
     private bool isPointInsideCircumcircleTrianglev4(Vector3 point, Triangle triangle) {
         Vector3 ac = triangle.third.origin.position - triangle.first.origin.position;
         Vector3 ab = triangle.second.origin.position - triangle.first.origin.position;
@@ -739,7 +804,7 @@ public class Destructible : MonoBehaviour
 
         Vector3 toCircumsphereCenter = (Vector3.Cross(abXac, ab) * len2(ac) + Vector3.Cross(ac, abXac) * len2(ab)) / (2f * len2(abXac));
         float circumradius = toCircumsphereCenter.magnitude;
-        Vector3 circumcenter = triangle.first.origin.position + toCircumsphereCenter;
+        circumcenter = triangle.first.origin.position + toCircumsphereCenter;
 
         float distancePointToCircumcenter = Vector3.Distance(point, circumcenter);
         //Debug.Log("Circumcenter: " + circumcenter + " Radius: " + circumradius + " Distance: " + distancePointToCircumcenter);
