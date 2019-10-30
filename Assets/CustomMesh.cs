@@ -238,8 +238,21 @@ public class CustomMesh : MonoBehaviour
         currentTriangulation.Add(superTriangle);
         yield return new WaitForSeconds(_speedConstructionMesh);
         //points.ForEach(point => {
-        for (int pointIndex = 0; pointIndex < points.Count; pointIndex++) {
 
+        // RANDOMIZE ORDER OF INSERTION (NECESSARY?)
+        int[] orderPointsToBeInserted = new int[points.Count];
+        for (int i = 0; i < points.Count; i++) {
+            orderPointsToBeInserted[i] = i;
+        }
+        for (int i = points.Count - 1; i > 0; i--) {
+            int j = Random.Range(0, i + 1);
+            int temp = orderPointsToBeInserted[i];
+            orderPointsToBeInserted[i] = orderPointsToBeInserted[j] ;
+            orderPointsToBeInserted[j] = temp;
+        }
+        
+        for (int i = 0; i < orderPointsToBeInserted.Length; i++) {
+            int pointIndex = orderPointsToBeInserted[i];
             Instantiate(_verticePrefab, points[pointIndex].position * transform.localScale.x + transform.position, Quaternion.identity);
             yield return new WaitForSeconds(_speedConstructionMesh);
             List<Triangle> badTriangles = new List<Triangle>();

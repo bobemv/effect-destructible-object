@@ -203,7 +203,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &558580331
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -229,7 +229,8 @@ MonoBehaviour:
   _verticePrefab: {fileID: 8807945969039277128, guid: db65332d1ff6bd345bf89a5a1d915005,
     type: 3}
   isActive: 0
-  _speedConstructionMesh: 0.3
+  _speedConstructionMesh: 0.005
+  isTriangulationFinished: 0
 --- !u!4 &558580332
 Transform:
   m_ObjectHideFlags: 0
@@ -238,7 +239,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 558580330}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 6.7, z: 0}
+  m_LocalPosition: {x: 0, y: 7.47, z: 0}
   m_LocalScale: {x: 5, y: 5, z: 5}
   m_Children: []
   m_Father: {fileID: 0}
@@ -533,7 +534,6 @@ MonoBehaviour:
   materialDebris: {fileID: 0}
   _verticePrefab: {fileID: 8807945969039277128, guid: db65332d1ff6bd345bf89a5a1d915005,
     type: 3}
-  _speedConstructionMesh: 0
 --- !u!65 &1461498309
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -778,4 +778,3 @@ MonoBehaviour:
   materialDebris: {fileID: 10652, guid: 0000000000000000f000000000000000, type: 0}
   _verticePrefab: {fileID: 8807945969039277128, guid: db65332d1ff6bd345bf89a5a1d915005,
     type: 3}
-  _speedConstructionMesh: 0.1
