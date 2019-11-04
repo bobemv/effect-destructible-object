@@ -17,7 +17,7 @@ public class DestructibleBackup : MonoBehaviour
     void Start()
     {
         mesh = GetComponent<MeshFilter>().mesh;
-        ConvertMeshToVerticesAndTriangles(mesh);
+        //ConvertMeshToVerticesAndTriangles(mesh);
     }
 
     void Update() {

@@ -22,6 +22,7 @@ public class VerticeMesh {
         indexMesh = _indexMesh;
         triangles = new List<TriangleMesh>();
         toBeDeleted = false;
+        duplicates = new List<VerticeMesh>();
     }
     public int indexMesh;
 
@@ -30,6 +31,7 @@ public class VerticeMesh {
     public List<TriangleMesh> triangles;
 
     public bool toBeDeleted;
+    public List<VerticeMesh> duplicates;
 
     override public string ToString() {
         return "Index: " + indexMesh + " - Position: " + position + " - Num triangles: " + triangles.Count;
@@ -68,7 +70,7 @@ public class Destructible : MonoBehaviour
     void Start()
     {
         mesh = GetComponent<MeshFilter>().mesh;
-        ConvertMeshToVerticesAndTriangles(mesh);
+        //ConvertMeshToVerticesAndTriangles(mesh);
     }
 
     void Update() {
@@ -82,10 +84,70 @@ public class Destructible : MonoBehaviour
         mesh.GetTriangles(triangles, 0);
         verticesMesh = new List<VerticeMesh>();
         trianglesMesh = new List<TriangleMesh>();
+        
+        //Debug.Log("Mesh sphere: ");
+        for (int i = 0; i < vertices.Count; i++) {
+            //Debug.Log(i + " " + vertices[i].ToString("#.00000000"));
 
+            verticesMesh.Add(new VerticeMesh(vertices[i], i));
+        }
+        for (int i = 0; i < triangles.Count; i+=3) {
+            TriangleMesh newTriangleMesh = new TriangleMesh(verticesMesh[triangles[i]], verticesMesh[triangles[i + 1]], verticesMesh[triangles[i + 2]], i);
+            trianglesMesh.Add(newTriangleMesh);
+            verticesMesh[triangles[i]].triangles.Add(newTriangleMesh);
+            verticesMesh[triangles[i + 1]].triangles.Add(newTriangleMesh);
+            verticesMesh[triangles[i + 2]].triangles.Add(newTriangleMesh);
+        }
+
+        List<VerticeMesh> verticeDuplicates = new List<VerticeMesh>();
+        List<TriangleMesh> triangleDuplicates = new List<TriangleMesh>();
+        int numSameVertices = 0;
+        for (int i = 0; i < verticesMesh.Count ; i++) {
+            for (int j = i + 1; j < verticesMesh.Count; j++) {
+                if (verticesMesh[i].position.x == verticesMesh[j].position.x && verticesMesh[i].position.y == verticesMesh[j].position.y && verticesMesh[i].position.z == verticesMesh[j].position.z) {
+                    Debug.Log("Same vertices: " + verticesMesh[i].indexMesh + " y " + verticesMesh[j].indexMesh);
+                    verticesMesh[i].duplicates.Add(verticesMesh[j]);
+                    verticeDuplicates.Add(verticesMesh[j]);
+                    numSameVertices++;
+                }
+            }
+        }
+        for (int i = 0; i < trianglesMesh.Count; i++) {
+            bool hasVerticeDuplicated = false;
+            hasVerticeDuplicated = verticeDuplicates.Exists(verticeDuplicate => verticeDuplicate.indexMesh == trianglesMesh[i].first.indexMesh);
+            hasVerticeDuplicated |= verticeDuplicates.Exists(verticeDuplicate => verticeDuplicate.indexMesh == trianglesMesh[i].second.indexMesh);
+            hasVerticeDuplicated |= verticeDuplicates.Exists(verticeDuplicate => verticeDuplicate.indexMesh == trianglesMesh[i].third.indexMesh);
+
+            if (hasVerticeDuplicated) {
+                triangleDuplicates.Add(trianglesMesh[i]);
+                //trianglesMesh.Remove(trianglesMesh[i]);
+                //i--;
+                //Removing duplicates is a bad idea
+            }
+        }
+
+        Debug.Log("Vertice duplicates: " + verticeDuplicates.Count);
+        Debug.Log("Triangle duplicates: " + triangleDuplicates.Count);
+        /*Debug.Log("Num same vertices: " + numSameVertices);
+        int[] counts = new int[vertices.Count];
 
         for (int i = 0; i < vertices.Count; i++) {
-            verticesMesh.Add(new VerticeMesh(vertices[i], i));
+            counts[i] = 0;
+        }
+        for (int i = 0; i < triangles.Count; i++) {
+            counts[triangles[i]]++;
+        }
+        Debug.Log("Vertices en los triangulos:");
+        for (int i = 0; i < vertices.Count; i++) {
+            Debug.Log("Index: " + i + " Counts: " + counts[i]);
+        }*/
+
+        /*for (int i = 0; i < verticesMesh.Count ; i++) {
+            for (int j = i + 1; j < verticesMesh.Count; j++) {
+                if (verticesMesh[i].position.x == verticesMesh[j].position.x && verticesMesh[i].position.y == verticesMesh[j].position.y && verticesMesh[i].position.z == verticesMesh[j].position.z) {
+                    verticesMesh.Remove(verticesMesh[i]);
+                }
+            }
         }
 
         for (int i = 0; i < triangles.Count; i+=3) {
@@ -94,7 +156,7 @@ public class Destructible : MonoBehaviour
             verticesMesh[triangles[i]].triangles.Add(newTriangleMesh);
             verticesMesh[triangles[i + 1]].triangles.Add(newTriangleMesh);
             verticesMesh[triangles[i + 2]].triangles.Add(newTriangleMesh);
-        }
+        }*/
     }
 
     public void Destruction(Vector3 impact, float radiusExplosion, Vector3 impactDir) {
@@ -151,7 +213,14 @@ public class Destructible : MonoBehaviour
         int indexVerticeMesh = 0;
         verticesMesh.ForEach(verticeMesh => verticeMesh.indexMesh = indexVerticeMesh++);
 
-
+        /*for (int i = 0; i < verticesEdgeHole.Count ; i++) {
+            for (int j = i + 1; j < verticesEdgeHole.Count; j++) {
+                if (verticesEdgeHole[i].position.x == verticesEdgeHole[j].position.x && verticesEdgeHole[i].position.y == verticesEdgeHole[j].position.y && verticesEdgeHole[i].position.z == verticesEdgeHole[j].position.z) {
+                    verticesEdgeHole.Remove(verticesEdgeHole[j]);
+                    j--;
+                }
+            }
+        }*/
 
 
         // ---- END VERTICE DELETION ----
@@ -162,6 +231,10 @@ public class Destructible : MonoBehaviour
         // START CREATING HOLE VERTICES
         Vector3 dirHole = new Vector3(0,0,0);
         Vector3 impactScaled = impact * 0.2f;
+        List<VerticeMesh> layerHole = new List<VerticeMesh>();
+        List<VerticeMesh> newLayerHole = new List<VerticeMesh>();
+        List<VerticeMesh> verticesHole = new List<VerticeMesh>();
+
         verticesEdgeHole.ForEach(verticeEdgeHole => {
             dirHole += (verticeEdgeHole.position - impactScaled);
         });
@@ -169,18 +242,18 @@ public class Destructible : MonoBehaviour
         dirHole.Normalize();
 
         Vector3 pointToConverge = dirHole * (radiusExplosion / transform.localScale.x) * 0.3f;
+        Vector3 pointToConvergeInverse = -dirHole * (radiusExplosion / transform.localScale.x) * 0.3f;
 
-        List<VerticeMesh> layerHole = new List<VerticeMesh>();
-        List<VerticeMesh> newLayerHole = new List<VerticeMesh>();
-        List<VerticeMesh> verticesHole = new List<VerticeMesh>();
+      
+        for (int i = 1000; i < verticesEdgeHole.Count; i+=2) {
+            VerticeMesh verticeHole = new VerticeMesh(verticesEdgeHole[i].position, indexVerticeMesh++);
+            verticeHole.position = Vector3.Lerp(verticeHole.position, pointToConverge, (Random.Range(0.2f, 0.24f)));
+            verticesHole.Add(verticeHole);
+        }
+
 
         layerHole = verticesEdgeHole;
-        verticesEdgeHole.ForEach(verticeEdgeHole => {
-            verticeEdgeHole.position = Vector3.Lerp(verticeEdgeHole.position, pointToConverge, (Random.Range(0, 0.3f)));
-        });
-        for (float i = 0; i < verticesEdgeHole.Count; i+=1f) {
-            //verticesEdgeHole.RemoveAt(Mathf.FloorToInt(i));
-        }
+ 
         for (int i = 3; i < 3; i++) {
             for (int j = 0; j < layerHole.Count; j++) {
                 if (j % i == 0) {
@@ -210,12 +283,19 @@ public class Destructible : MonoBehaviour
         //plane.normal = dirHole;
         List<Vertice> verticeForTriangulation = new List<Vertice>();
 
-        //List<Vector3> pointsToCustomMesh = new List<Vector3>();
+        List<Vector3> pointsToCustomMesh = new List<Vector3>();
 
         verticesHole.ForEach(verticeHole => {
             verticeForTriangulation.Add(new Vertice(PointProjectedInPlane(verticeHole.position, plane.normal), verticeHole.indexMesh));
-            //pointsToCustomMesh.Add(verticeHole.position);
+            verticeHole.position = PointProjectedInPlane(verticeHole.position, plane.normal);
+            pointsToCustomMesh.Add(verticeHole.position);
         });
+
+        GameObject.Find("CustomMesh").GetComponent<CustomMesh>().points = pointsToCustomMesh;
+        GameObject.Find("CustomMesh").GetComponent<CustomMesh>().plane = plane;
+        GameObject.Find("CustomMesh").GetComponent<CustomMesh>().centerSphere = impactScaled;
+        GameObject.Find("CustomMesh").GetComponent<CustomMesh>().radiusSphere = radiusExplosion / transform.localScale.x;
+        GameObject.Find("CustomMesh").GetComponent<CustomMesh>().Startv2();
 
 
         //currentTriangulation = new List<Triangle>();
@@ -367,11 +447,11 @@ public class Destructible : MonoBehaviour
 
             possibleNotSharedEdges.ForEach(possibleEdge => {
                 if (possibleNotSharedEdges.FindAll(edge => Edge.IsSameVertices(possibleEdge, edge)).Count() == 1) {
-                    Debug.Log("Added to Polygon: o(" + possibleEdge.origin.position + ") e(" + possibleEdge.end.position);
+                    //Debug.Log("Added to Polygon: o(" + possibleEdge.origin.position + ") e(" + possibleEdge.end.position);
                     polygon.Add(possibleEdge);
                 }
                 else {
-                    Debug.Log("NOT Added to Polygon: o(" + possibleEdge.origin.position + ") e(" + possibleEdge.end.position);
+                    //Debug.Log("NOT Added to Polygon: o(" + possibleEdge.origin.position + ") e(" + possibleEdge.end.position);
                 }
             });
 
@@ -441,11 +521,11 @@ public class Destructible : MonoBehaviour
 
         if (isPointInside) {
             //DrawCircle(circumcenter, circumradius, 100);
-            Debug.Log("[X] Circumcenter: " + circumcenter + " Radius: " + circumradius + " Distance: " + distancePointToCircumcenter);
+            //Debug.Log("[X] Circumcenter: " + circumcenter + " Radius: " + circumradius + " Distance: " + distancePointToCircumcenter);
 
         }
         else {
-            Debug.Log("[O] Circumcenter: " + circumcenter + " Radius: " + circumradius + " Distance: " + distancePointToCircumcenter);
+            //Debug.Log("[O] Circumcenter: " + circumcenter + " Radius: " + circumradius + " Distance: " + distancePointToCircumcenter);
 
         }
         return isPointInside;
@@ -454,7 +534,7 @@ public class Destructible : MonoBehaviour
         //circumcenterX /= (Mathf.Sin(2 * angleFirst) + Mathf.Sin(2 * angleSecond) + Mathf.Sin(2 * angleThird));
     }
 
-    private bool isPointInsideCircumcircleTriangle_working_well(Vector3 point, Triangle triangle) {
+    private bool isPointInsideCircumcircleTriangle_works_well(Vector3 point, Triangle triangle) {
         Vector3 ac = triangle.third.origin.position - triangle.first.origin.position;
         Vector3 ab = triangle.second.origin.position - triangle.first.origin.position;
         Vector3 abXac = Vector3.Cross(ab, ac);

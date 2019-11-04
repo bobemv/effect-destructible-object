@@ -11,6 +11,10 @@ public class Vertice {
     }
     public Vector3 position;
     public int index;
+
+    override public string ToString() {
+        return index + " " + position.ToString("#.00000");
+    }
 }
 
 public class Edge {
@@ -68,6 +72,10 @@ public class Triangle {
         Debug.DrawLine(second.origin.position, second.end.position, Color.white, 3f);
         Debug.DrawLine(third.origin.position, third.end.position, Color.white, 3f);
     }
+
+    public string toString() {
+        return "(" + first.origin.position.ToString("#.00000") + ", " + second.origin.position.ToString("#.00000") + ", " + third.origin.position.ToString("#.00000") + ")";
+    }
 }
 
 public class VerticeOnSphere {
@@ -116,6 +124,8 @@ public class CustomMesh : MonoBehaviour
     List<Vertice> currentVertices = new List<Vertice>();
     List<Vertice> triangulationVerticev2 = new List<Vertice>();
     public Plane plane;
+    public Vector3 centerSphere;
+    public float radiusSphere;
 
     private int indexVertice = 0;
     public bool isActive = false;
@@ -158,10 +168,10 @@ public class CustomMesh : MonoBehaviour
         List<Vertice> verticesProjectedInPlane = new List<Vertice>();
 
         points.ForEach(point => {
-            Vertice newVerticeProjected = new Vertice(PointProjectedInPlane(point, plane.normal), indexVertices);
+            Vertice newVerticeProjected = new Vertice(PointProjectedStereographic(point, centerSphere, radiusSphere), indexVertices);
             Vertice newVerticeMesh = new Vertice(point, indexVertices);
-            Instantiate(_verticePrefab, point * transform.localScale.x + transform.position, Quaternion.identity);
-
+            //Instantiate(_verticePrefab, point * transform.localScale.x + transform.position, Quaternion.identity);
+            Debug.Log(point.ToString("#.00000"));
             verticesProjectedInPlane.Add(newVerticeProjected);
             currentVertices.Add(newVerticeMesh);
             indexVertices++;
@@ -176,6 +186,10 @@ public class CustomMesh : MonoBehaviour
         Vector3 origToPoint = point - new Vector3(0,0,0);
         float d = Vector3.Dot(origToPoint, normalPlane);
         return point - d * normalPlane;
+    }
+
+    private Vector3 PointProjectedStereographic(Vector3 point, Vector3 centerSphere, float radius) {
+        return new Vector3(point.x / (1 - point.y), 0, point.z / (1 - point.y));
     }
 
     private Triangle GetSuperTriangle(Plane plane) {
@@ -354,11 +368,11 @@ public class CustomMesh : MonoBehaviour
 
         if (isPointInside) {
             //DrawCircle(circumcenter, circumradius, 100);
-            Debug.Log("[X] Circumcenter: " + circumcenter + " Radius: " + circumradius + " Distance: " + distancePointToCircumcenter);
+            Debug.Log("[X] Circumcenter: " + circumcenter.ToString("#.00000") + " Radius: " + circumradius + " Distance: " + distancePointToCircumcenter.ToString("#.00000") + " Point: " + point + " Triangle: " + triangle.toString());
 
         }
         else {
-            Debug.Log("[O] Circumcenter: " + circumcenter + " Radius: " + circumradius + " Distance: " + distancePointToCircumcenter);
+            Debug.Log("[O] Circumcenter: " + circumcenter.ToString("#.00000") + " Radius: " + circumradius + " Distance: " + distancePointToCircumcenter.ToString("#.00000") + " Point: " + point + " Triangle: " + triangle.toString());
 
         }
         return isPointInside;
