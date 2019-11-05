@@ -30,11 +30,33 @@ public class LookCamera : MonoBehaviour
             //Debug.DrawRay(ray.origin, ray.direction * 10, Color.yellow, 1f);
             Physics.Raycast(ray, out hit, 100f);
             if (hit.collider != null && hit.collider.tag == "Destructible") {
-                Debug.Log("Llegue!");
+                //Debug.Log("Llegue!");
                 hit.collider.gameObject.GetComponent<Destructible>().Destruction(hit.point, radiusExplosion, Vector3.Normalize(hit.point - hit.collider.gameObject.transform.position));
                 //Rigidbody body = hit.collider.gameObject.GetComponent<Rigidbody>();
                 //body.AddExplosionForce(10f, hit.point, 5f);
             }
+            if (hit.collider != null && hit.collider.tag == "DestructibleMarchingCubes") {
+                Debug.Log("Llegue!");
+
+                hit.collider.gameObject.GetComponent<MarchingCubes>().Destruction(hit.point, radiusExplosion);
+                //Rigidbody body = hit.collider.gameObject.GetComponent<Rigidbody>();
+                //body.AddExplosionForce(10f, hit.point, 5f);
+            }
+            
+
+        }
+        if (Input.GetKeyDown(KeyCode.Mouse1)) {
+            Ray ray = GetComponent<Camera>().ScreenPointToRay(new Vector3(Screen.width / 2, Screen.height / 2, 100f));
+            RaycastHit hit;
+            //Debug.DrawRay(ray.origin, ray.direction * 10, Color.yellow, 1f);
+            Physics.Raycast(ray, out hit, 100f);
+            if (hit.collider != null && hit.collider.tag == "DestructibleMarchingCubes") {
+                Debug.Log("Llegue FORCE!");
+                //hit.collider.gameObject.GetComponent<Destructible>().Destruction(hit.point, radiusExplosion, Vector3.Normalize(hit.point - hit.collider.gameObject.transform.position));
+                Rigidbody body = hit.collider.gameObject.GetComponent<Rigidbody>();
+                body.AddExplosionForce(10f, hit.point, 5f);
+            }
+            
 
         }
 
