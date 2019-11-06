@@ -6,6 +6,7 @@ TagManager:
   tags:
   - Fire
   - Destructible
+  - DestructibleMarchingCubes
   layers:
   - Default
   - TransparentFX
