@@ -48,7 +48,7 @@ public class MarchingCubes : MonoBehaviour
                     CubeVertice vertice = cubeVertices[i, j, k];
                     vertice.gridPosition = new Vector3(i, j, k);
                     //vertice.worldPosition = transform.position + vertice.gridPosition * sizeCube;
-                    vertice.localPosition = vertice.gridPosition * sizeCube;
+                    vertice.localPosition = (vertice.gridPosition) * sizeCube;
                     
                     vertice.isDestroyed = false;
                     vertice.value = 0;

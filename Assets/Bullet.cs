@@ -6,16 +6,14 @@ public class Bullet : MonoBehaviour
 {
     [SerializeField] private float _speed;
     [SerializeField] private float _radiusExplosion;
+
+    private Vector3 dir;
     // Start is called before the first frame update
-    void Start()
-    {
-        
-    }
 
     // Update is called once per frame
     void Update()
     {
-        transform.Translate(-transform.forward * _speed * Time.deltaTime);
+        transform.Translate(dir * _speed * Time.deltaTime, Space.World);
     }
 
     private void OnTriggerEnter(Collider other) {
@@ -24,5 +22,9 @@ public class Bullet : MonoBehaviour
             //Destroy(other.gameObject);
             Destroy(gameObject);
         }
+    }
+
+    public void SetDir(Vector3 _dir) {
+        dir = _dir;
     }
 }

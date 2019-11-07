@@ -35,7 +35,7 @@ public class Obstacle : MonoBehaviour
     {
         
         transform.Translate(Vector3.back * _speed * Time.deltaTime);
-        if (transform.position.z < -50) {
+        if (transform.position.z < -1000) {
             Destroy(gameObject);
         }
     }
@@ -43,22 +43,29 @@ public class Obstacle : MonoBehaviour
     void SetSizeByObstacleType(ObstacleType type) {
         switch(type) {
             case ObstacleType.BigLeft:
-                sizesMaxCube = new Vector3(Mathf.Abs(leftMax - rightMax) + sizeCube * 2, sizeCube * 2 + Mathf.Abs(upMax - downMax) / 2, 2);
-                transform.position = new Vector3(leftMax, upMax / 2, posZ);
+                sizesMaxCube = new Vector3(Mathf.Abs(leftMax - rightMax) / 2 + 2, Mathf.Abs(upMax - downMax) + 2, 2);
+                transform.position = new Vector3(leftMax - 1, downMax - 1, posZ);
             break;
             case ObstacleType.BigRight:
+                sizesMaxCube = new Vector3(Mathf.Abs(leftMax - rightMax) / 2 + 2, Mathf.Abs(upMax - downMax) + 2, 2);
+                transform.position = new Vector3(Mathf.Abs(leftMax - rightMax) / 2 + leftMax, downMax - 1, posZ);
             break;
             case ObstacleType.BigUp:
-                sizesMaxCube = new Vector3(Mathf.Abs(leftMax - rightMax) + sizeCube, sizeCube + Mathf.Abs(upMax - downMax) / 2, 2);
-                transform.position = new Vector3(leftMax, (upMax - downMax) / 2 + downMax, posZ);
+                sizesMaxCube = new Vector3(Mathf.Abs(leftMax - rightMax) + 2, Mathf.Abs(upMax - downMax) / 2 + 2, 2);
+                transform.position = new Vector3(leftMax - 1, (upMax - downMax) / 2 + downMax, posZ);
             break;
             case ObstacleType.BigDown:
-                sizesMaxCube = new Vector3(Mathf.Abs(leftMax - rightMax) + sizeCube, 2 * sizeCube + Mathf.Abs(upMax - downMax) / 2, 2);
-                transform.position = new Vector3(leftMax, downMax, posZ);
+                sizesMaxCube = new Vector3(Mathf.Abs(leftMax - rightMax) + 2, Mathf.Abs(upMax - downMax) / 2 + 2, 2);
+                transform.position = new Vector3(leftMax - 1, downMax - 1, posZ);
             break;
             case ObstacleType.SmallRandom:
+                sizesMaxCube = new Vector3(4, 4, 4);
+                transform.position = new Vector3(Random.Range(leftMax, rightMax), Random.Range(downMax, upMax), posZ);
             break;
             case ObstacleType.BigAll:
+                sizesMaxCube = new Vector3((Mathf.Abs(leftMax - rightMax) + 2) / 2, (Mathf.Abs(upMax - downMax) + 2) / 2, 100);
+                sizeCube = 2;
+                transform.position = new Vector3(leftMax - 1, downMax - 1, posZ);
             break;
         }
     }

@@ -157,6 +157,7 @@ public class Ship : MonoBehaviour
         //transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.FromToRotation(Vector3.right, transform.up), _rotationSpeed * Time.deltaTime);
       
         Shoot();
+        CameraMovement();
     }
     float x = 180;
     float y = 0;
@@ -164,8 +165,22 @@ public class Ship : MonoBehaviour
 
     void Shoot() {
         if (Input.GetKeyDown(KeyCode.Mouse0)) {
-            Instantiate(_bulletPrefab, transform.position + Vector3.forward + Vector3.left, Quaternion.Euler(270, 0, 0));
-            Instantiate(_bulletPrefab, transform.position + Vector3.forward + Vector3.right, Quaternion.Euler(270, 0, 0));
+            Instantiate(_bulletPrefab, transform.position + Vector3.forward + Vector3.left, Quaternion.Euler(270, 0, 0)).GetComponent<Bullet>().SetDir(-transform.forward);
+            Instantiate(_bulletPrefab, transform.position + Vector3.forward + Vector3.forward, Quaternion.Euler(270, 0, 0)).GetComponent<Bullet>().SetDir(-transform.forward);
+        }
+    }
+
+    bool isCameraBehind = true;
+
+    void CameraMovement() {
+        if (Input.GetKeyDown(KeyCode.Space)) {
+            isCameraBehind = !isCameraBehind;
+        }
+        if (isCameraBehind) {
+            Camera.main.transform.position = Vector3.Slerp(Camera.main.transform.position, new Vector3(transform.position.x, transform.position.y + 3, -39.7f), 5 * Time.deltaTime);
+        }
+        else {
+            Camera.main.transform.position = Vector3.Slerp(Camera.main.transform.position, transform.position + Vector3.forward, 5 * Time.deltaTime);
         }
     }
     private void OnTriggerEnter(Collider other) {
