@@ -5,6 +5,7 @@ using UnityEngine;
 public class Bullet : MonoBehaviour
 {
     [SerializeField] private float _speed;
+    [SerializeField] private float _radiusExplosion;
     // Start is called before the first frame update
     void Start()
     {
@@ -19,7 +20,7 @@ public class Bullet : MonoBehaviour
 
     private void OnTriggerEnter(Collider other) {
         if (other.tag == "Obstacle") {
-            other.gameObject.GetComponent<MarchingCubes>().Destruction(transform.position, 4);
+            other.gameObject.GetComponent<MarchingCubes>().Destruction(transform.position, _radiusExplosion);
             //Destroy(other.gameObject);
             Destroy(gameObject);
         }

@@ -17,10 +17,13 @@ public class ObstaclesManager : MonoBehaviour
     void Start()
     {
         obstacles = new List<Obstacle>();
-        for (int i = 0; i < 100; i++) {
+
+
+
+        /*for (int i = 0; i < 100; i++) {
             Obstacle obstacle = Instantiate(_obstaclePrefab, Vector3.zero +  new Vector3(0, 50, 0), Quaternion.identity).GetComponent<Obstacle>();
             obstacles.Add(obstacle);
-        }
+        }*/
 
         StartCoroutine(SpawnObstacles());
     }
@@ -34,9 +37,18 @@ public class ObstaclesManager : MonoBehaviour
 
     IEnumerator SpawnObstacles() {
         while (true) {
-            Obstacle obstacle = obstacles.First(o => o.isInUse == false);
-            obstacle.transform.position = new Vector3(Random.Range(-9f, 9f), Random.Range(4f, 12f), 60);
-            obstacle.isInUse = true;
+            //Obstacle obstacle = obstacles.First(o => o.isInUse == false);
+            //obstacle.transform.position = new Vector3(Random.Range(-9f, 9f), Random.Range(4f, 12f), 60);
+            //obstacle.isInUse = true;
+            Obstacle obstacle = Instantiate(_obstaclePrefab, Vector3.zero, Quaternion.identity).GetComponent<Obstacle>();
+            if (Random.Range(0, 2) == 0) {
+                obstacle.CreateObstacle(ObstacleType.BigUp);
+
+            }
+            else {
+            obstacle.CreateObstacle(ObstacleType.BigDown);
+
+            }
             yield return new WaitForSeconds(_spawnRate);
         }
     }

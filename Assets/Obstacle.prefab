@@ -94,7 +94,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 06a02cb81905d054f943275f335f5a9e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _speed: 20
+  _speed: 15
   isInUse: 0
 --- !u!114 &-8633982845845784803
 MonoBehaviour:
@@ -108,7 +108,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 692675bf5589d7a4b9bd6de18318d505, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _verticePrefab: {fileID: 0}
+  sizeMaxCubeX: 10
+  sizeMaxCubeY: 10
+  sizeMaxCubeZ: 10
+  sizeCube: 0.5
 --- !u!64 &2191942273806445824
 MeshCollider:
   m_ObjectHideFlags: 0

@@ -54,12 +54,12 @@ public class Ship : MonoBehaviour
             isMovingHorizontal = true;
             //desiredRotationZ = rotationRightMax;
         }
-        if (Input.GetKey(KeyCode.W)) {
+        if (Input.GetKey(KeyCode.S)) {
             move += Vector3.down;
             isMovingDown = true;
             isMovingVertical = true;
         }
-        else if (Input.GetKey(KeyCode.S)) {
+        else if (Input.GetKey(KeyCode.W)) {
             move += Vector3.up;
             isMovingUp = true;
             isMovingVertical = true;
@@ -164,7 +164,8 @@ public class Ship : MonoBehaviour
 
     void Shoot() {
         if (Input.GetKeyDown(KeyCode.Mouse0)) {
-            Instantiate(_bulletPrefab, transform.position + Vector3.forward, Quaternion.Euler(270, 0, 0));
+            Instantiate(_bulletPrefab, transform.position + Vector3.forward + Vector3.left, Quaternion.Euler(270, 0, 0));
+            Instantiate(_bulletPrefab, transform.position + Vector3.forward + Vector3.right, Quaternion.Euler(270, 0, 0));
         }
     }
     private void OnTriggerEnter(Collider other) {

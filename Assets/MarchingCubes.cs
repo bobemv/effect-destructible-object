@@ -2,103 +2,94 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+
+
+public struct CubeVertice {
+    public Vector3 GetWorldPosition(Vector3 positionGameObject) {
+        return positionGameObject + localPosition;
+    }
+    public Vector3 localPosition;
+    public Vector3 gridPosition;
+    public float value;
+    public bool isDestroyed;
+};
+
 public struct Cube {
-    public int combination;
-    public int index;
-    public int[] adyacentCubes;
+    public int configuration;
 }
-
-
-
-
 public class MarchingCubes : MonoBehaviour
 {
     private Mesh mesh;
-    private List<Vector3> vertices;
-    private List<int> triangles;
+    private MeshCollider meshCollider;
 
-
-
-    private int[,] combinations;
-    private int[] edgeTable;
-    private int[,] relationEdgeToVertices;
-    private Vector3[] verticesCubeRelativePositions;
-    private int sizeMaxCube = 10;
+    [SerializeField] private int sizeMaxCubeX = 10;
+    [SerializeField] private int sizeMaxCubeY = 10;
+    [SerializeField] private int sizeMaxCubeZ = 10;
+    [SerializeField] private float sizeCube = 0.5f;
     private Cube[, ,] cubes;
-    private bool[, , ,] impacted;
-    public GameObject _verticePrefab;
+    private CubeVertice[, ,] cubeVertices;
     // Start is called before the first frame update
 
-    float sizeCube = 0.5f;
-    float radiusSphere = 2.5f;
-    Vector3 centerSphere = new Vector3(2.5f, 2.5f, 2.5f);
-    void Start()
+    public void CreateModel(Vector3 _sizesMaxCube, float _sizeCube)
     {
+        sizeMaxCubeX = (int)_sizesMaxCube.x;
+        sizeMaxCubeY = (int)_sizesMaxCube.y;
+        sizeMaxCubeZ = (int)_sizesMaxCube.z;
+        sizeCube = _sizeCube;
         mesh = GetComponent<MeshFilter>().mesh;
-        GetComponent<MeshCollider>().sharedMesh = mesh;
-        vertices = new List<Vector3>();
-        triangles = new List<int>();
+        meshCollider = GetComponent<MeshCollider>();
+        meshCollider.sharedMesh = mesh;
+        cubes = new Cube[sizeMaxCubeX, sizeMaxCubeY, sizeMaxCubeZ];
+        cubeVertices = new CubeVertice[sizeMaxCubeX + 1, sizeMaxCubeY + 1, sizeMaxCubeZ + 1];
 
-        cubes = new Cube[sizeMaxCube, sizeMaxCube, sizeMaxCube];
-        impacted = new bool[sizeMaxCube, sizeMaxCube, sizeMaxCube, 8];
-
-
-        for (int k = 0; k < sizeMaxCube; k++) {
-            for (int j = 0; j < sizeMaxCube; j++) {
-                for (int i = 0; i < sizeMaxCube; i++) {
+        for (int k = 0; k < (sizeMaxCubeZ + 1); k++) {
+            for (int j = 0; j < (sizeMaxCubeY + 1); j++) {
+                for (int i = 0; i < (sizeMaxCubeX + 1); i++) {
+                    CubeVertice vertice = cubeVertices[i, j, k];
+                    vertice.gridPosition = new Vector3(i, j, k);
+                    //vertice.worldPosition = transform.position + vertice.gridPosition * sizeCube;
+                    vertice.localPosition = vertice.gridPosition * sizeCube;
+                    
+                    vertice.isDestroyed = false;
+                    vertice.value = 0;
+                    if (vertice.gridPosition.x == 0 || vertice.gridPosition.x == sizeMaxCubeX ||
+                        vertice.gridPosition.y == 0 || vertice.gridPosition.y == sizeMaxCubeY ||
+                        vertice.gridPosition.z == 0 || vertice.gridPosition.z == sizeMaxCubeZ) {
+                        vertice.isDestroyed = true;
+                    }
+                    cubeVertices[i, j, k] = vertice;
+                }
+            }
+        }
+        for (int k = 0; k < sizeMaxCubeZ; k++) {
+            for (int j = 0; j < sizeMaxCubeY; j++) {
+                for (int i = 0; i < sizeMaxCubeX; i++) {
                     Cube cube = cubes[i, j, k];
-                    cube.index = i + sizeMaxCube * j + sizeMaxCube * sizeMaxCube * k;
-                    cube.combination = 0; 
-                    Vector3 vertice1 = new Vector3(i * sizeCube + sizeCube, j * sizeCube, k * sizeCube);
-                    Vector3 vertice2 = new Vector3(i * sizeCube, j * sizeCube, k * sizeCube);
-                    Vector3 vertice3 = new Vector3(i * sizeCube, j * sizeCube, k * sizeCube + sizeCube);
-                    Vector3 vertice4 = new Vector3(i * sizeCube + sizeCube, j * sizeCube, k * sizeCube + sizeCube);
-                    Vector3 vertice5 = new Vector3(i * sizeCube + sizeCube, j * sizeCube + sizeCube, k * sizeCube);
-                    Vector3 vertice6 = new Vector3(i * sizeCube, j * sizeCube + sizeCube, k * sizeCube);
-                    Vector3 vertice7 = new Vector3(i * sizeCube, j * sizeCube + sizeCube, k * sizeCube + sizeCube);
-                    Vector3 vertice8 = new Vector3(i * sizeCube + sizeCube, j * sizeCube + sizeCube, k * sizeCube + sizeCube);
-
-                    if (Vector3.Distance(vertice1, centerSphere) < radiusSphere && !impacted[i, j, k, 0]) {
-                        cube.combination |= (1 << 0);
-                        //Instantiate(_verticePrefab, vertice1, Quaternion.identity);
+                    cube.configuration = 0;
+                    for (int verticeIndex = 0; verticeIndex < 8; verticeIndex++) {
+                        Vector3 relativePosition = GetCubeVerticePositionRelativeByIndex(verticeIndex);
+                        CubeVertice vertice = cubeVertices[i + (int)relativePosition.x, j + (int)relativePosition.y, k + (int)relativePosition.z];
+                        if (!vertice.isDestroyed) {
+                            cube.configuration |= (1 << verticeIndex);
+                        }
                     }
-                    if (Vector3.Distance(vertice2, centerSphere) < radiusSphere && !impacted[i, j, k, 1]) {
-                        cube.combination |= (1 << 1);
-                        //Instantiate(_verticePrefab, vertice2, Quaternion.identity);
+                    cubes[i, j, k] = cube;
+                }
+            }
+        }
+        RebuildMesh();
+    }
 
-                    }
-                    if (Vector3.Distance(vertice3, centerSphere) < radiusSphere && !impacted[i, j, k, 2]) {
-                        cube.combination |= (1 << 2);
-                        //Instantiate(_verticePrefab, vertice3, Quaternion.identity);
+    public void RebuildMesh() {
+        List<Vector3> verticesMesh = new List<Vector3>();
+        List<int> trianglesMesh = new List<int>();
 
-                    }
-                    if (Vector3.Distance(vertice4, centerSphere) < radiusSphere && !impacted[i, j, k, 3]) {
-                        cube.combination |= (1 << 3);
-                        //Instantiate(_verticePrefab, vertice4, Quaternion.identity);
+        for (int k = 0; k < sizeMaxCubeZ; k++) {
+            for (int j = 0; j < sizeMaxCubeY; j++) {
+                for (int i = 0; i < sizeMaxCubeX; i++) {
+                    Cube cube = cubes[i, j, k];
 
-                    }
-                    if (Vector3.Distance(vertice5, centerSphere) < radiusSphere && !impacted[i, j, k, 4]) {
-                        cube.combination |= (1 << 4);
-                        //Instantiate(_verticePrefab, vertice5, Quaternion.identity);
-
-                    }
-                    if (Vector3.Distance(vertice6, centerSphere) < radiusSphere && !impacted[i, j, k, 5]) {
-                        cube.combination |= (1 << 5);
-                        //Instantiate(_verticePrefab, vertice6, Quaternion.identity);
-
-                    }
-                    if (Vector3.Distance(vertice7, centerSphere) < radiusSphere && !impacted[i, j, k, 6]) {
-                        cube.combination |= (1 << 6);
-                        //Instantiate(_verticePrefab, vertice7, Quaternion.identity);
-
-                    }
-                    if (Vector3.Distance(vertice8, centerSphere) < radiusSphere && !impacted[i, j, k, 7]) {
-                        cube.combination |= (1 << 7);
-                        //Instantiate(_verticePrefab, vertice8, Quaternion.identity);
-
-                    }
-
-                    int edgeMask = edgeTable[cube.combination];
+                    int edgeMask = GetCubeEdgesConfigurationByIndex(cube.configuration);
 
                     if (edgeMask == 0) {
                         continue;
@@ -111,206 +102,96 @@ public class MarchingCubes : MonoBehaviour
 							continue;
 						}
 
-						int verticeStartIndex = relationEdgeToVertices[edgeIndex, 0];
-						int verticeEndIndex = relationEdgeToVertices[edgeIndex, 1];
-						Vector3 p0 = verticesCubeRelativePositions[verticeStartIndex];
-						Vector3 p1 = verticesCubeRelativePositions[verticeEndIndex];
+						int[] verticesEdgeIndex = GetVerticePairsByEdgeIndex(edgeIndex);
+						Vector3 p0 = GetCubeVerticePositionRelativeByIndex(verticesEdgeIndex[0]);
+						Vector3 p1 = GetCubeVerticePositionRelativeByIndex(verticesEdgeIndex[1]);
+                        CubeVertice origin = cubeVertices[i + (int)p0.x, j + (int)p0.y, k + (int)p0.z];
+                        CubeVertice end = cubeVertices[i + (int)p1.x, j + (int)p1.y, k + (int)p1.z];
+               
+                        Vector3 midPoint = ((end.localPosition - origin.localPosition) * 0.5f) + origin.localPosition;
 
-                        Vector3 midPoint = ((p1 - p0) * 0.5f) + p0;
-
-                        midPoint *= sizeCube;
-                        midPoint += new Vector3(i * sizeCube, j * sizeCube, k * sizeCube);
-
-						edges[edgeIndex] = vertices.Count;
-						vertices.Add(midPoint);
+						edges[edgeIndex] = verticesMesh.Count;
+						verticesMesh.Add(midPoint);
 
                     }
 
-                    for (int n = 0; n < 16; n+=3) {
-                        if (combinations[cube.combination, n] == -1) {
-                            break;
-                        }
-                        triangles.Add(edges[combinations[cube.combination, n + 2]]);
-                        triangles.Add(edges[combinations[cube.combination, n + 1]]);
-                        triangles.Add(edges[combinations[cube.combination, n]]);
+                    int[] trianglesIndexes = GetCubeTrianglesConfigurationByIndex(cube.configuration);
+                    for (int n = 0; n < trianglesIndexes.Length; n+=3) {
+                        trianglesMesh.Add(edges[trianglesIndexes[n + 2]]);
+                        trianglesMesh.Add(edges[trianglesIndexes[n + 1]]);
+                        trianglesMesh.Add(edges[trianglesIndexes[n]]);
                     }
                 }
             }
         }
 
         mesh.Clear();
-        mesh.vertices = vertices.ToArray();
-        mesh.triangles = triangles.ToArray();
+        mesh.vertices = verticesMesh.ToArray();
+        mesh.triangles = trianglesMesh.ToArray();
 
 
         mesh.RecalculateBounds();
         mesh.RecalculateNormals();
         mesh.RecalculateTangents();
 
-        GetComponent<MeshCollider>().sharedMesh = null;
-        GetComponent<MeshCollider>().sharedMesh = mesh;
+        meshCollider.sharedMesh = mesh;
     }
-
 
     public void Destruction(Vector3 impact, float radiusImpact) {
-        Debug.Log("DESTRUYE!");
-        impact.Normalize();
-        for (int k = 0; k < sizeMaxCube; k++) {
-            for (int j = 0; j < sizeMaxCube; j++) {
-                for (int i = 0; i < sizeMaxCube; i++) {
-                    Vector3 vertice1 = new Vector3(i * sizeCube + sizeCube, j * sizeCube, k * sizeCube);
-                    Vector3 vertice2 = new Vector3(i * sizeCube, j * sizeCube, k * sizeCube);
-                    Vector3 vertice3 = new Vector3(i * sizeCube, j * sizeCube, k * sizeCube + sizeCube);
-                    Vector3 vertice4 = new Vector3(i * sizeCube + sizeCube, j * sizeCube, k * sizeCube + sizeCube);
-                    Vector3 vertice5 = new Vector3(i * sizeCube + sizeCube, j * sizeCube + sizeCube, k * sizeCube);
-                    Vector3 vertice6 = new Vector3(i * sizeCube, j * sizeCube + sizeCube, k * sizeCube);
-                    Vector3 vertice7 = new Vector3(i * sizeCube, j * sizeCube + sizeCube, k * sizeCube + sizeCube);
-                    Vector3 vertice8 = new Vector3(i * sizeCube + sizeCube, j * sizeCube + sizeCube, k * sizeCube + sizeCube);
-                    if (Vector3.Distance(vertice1, impact) < radiusImpact) {
-                        impacted[i, j, k, 0] = true;
+        for (int k = 0; k < (sizeMaxCubeZ + 1); k++) {
+            for (int j = 0; j < (sizeMaxCubeY + 1); j++) {
+                for (int i = 0; i < (sizeMaxCubeX + 1); i++) {
+                    CubeVertice vertice = cubeVertices[i, j, k];
+                    
+                    if (Vector3.Distance(impact, vertice.GetWorldPosition(transform.position)) < radiusImpact) {
+                        vertice.isDestroyed = true;
                     }
-                    if (Vector3.Distance(vertice2, impact) < radiusImpact) {
-                        impacted[i, j, k, 1] = true;
-                    }
-                    if (Vector3.Distance(vertice3, impact) < radiusImpact) {
-                        impacted[i, j, k, 2] = true;
-                    }
-                    if (Vector3.Distance(vertice4, impact) < radiusImpact) {
-                        impacted[i, j, k, 3] = true;
-                    }
-                    if (Vector3.Distance(vertice5, impact) < radiusImpact) {
-                        impacted[i, j, k, 4] = true;
-                    }
-                    if (Vector3.Distance(vertice6, impact) < radiusImpact) {
-                        impacted[i, j, k, 5] = true;
-                    }
-                    if (Vector3.Distance(vertice7, impact) < radiusImpact) {
-                        impacted[i, j, k, 6] = true;
-                    }
-                    if (Vector3.Distance(vertice8, impact) < radiusImpact) {
-                        impacted[i, j, k, 7] = true;
-                    }
+                    cubeVertices[i, j, k] = vertice;
                 }
             }
         }
-
-
-        mesh = GetComponent<MeshFilter>().mesh;
-        GetComponent<MeshCollider>().sharedMesh = mesh;
-        vertices = new List<Vector3>();
-        triangles = new List<int>();
-
-        cubes = new Cube[sizeMaxCube, sizeMaxCube, sizeMaxCube];
-        //impacted = new bool[sizeMaxCube, sizeMaxCube, sizeMaxCube, 8];
-
-
-        for (int k = 0; k < sizeMaxCube; k++) {
-            for (int j = 0; j < sizeMaxCube; j++) {
-                for (int i = 0; i < sizeMaxCube; i++) {
+        for (int k = 0; k < sizeMaxCubeZ; k++) {
+            for (int j = 0; j < sizeMaxCubeY; j++) {
+                for (int i = 0; i < sizeMaxCubeX; i++) {
                     Cube cube = cubes[i, j, k];
-                    cube.index = i + sizeMaxCube * j + sizeMaxCube * sizeMaxCube * k;
-                    cube.combination = 0; 
-                    Vector3 vertice1 = new Vector3(i * sizeCube + sizeCube, j * sizeCube, k * sizeCube);
-                    Vector3 vertice2 = new Vector3(i * sizeCube, j * sizeCube, k * sizeCube);
-                    Vector3 vertice3 = new Vector3(i * sizeCube, j * sizeCube, k * sizeCube + sizeCube);
-                    Vector3 vertice4 = new Vector3(i * sizeCube + sizeCube, j * sizeCube, k * sizeCube + sizeCube);
-                    Vector3 vertice5 = new Vector3(i * sizeCube + sizeCube, j * sizeCube + sizeCube, k * sizeCube);
-                    Vector3 vertice6 = new Vector3(i * sizeCube, j * sizeCube + sizeCube, k * sizeCube);
-                    Vector3 vertice7 = new Vector3(i * sizeCube, j * sizeCube + sizeCube, k * sizeCube + sizeCube);
-                    Vector3 vertice8 = new Vector3(i * sizeCube + sizeCube, j * sizeCube + sizeCube, k * sizeCube + sizeCube);
-
-                    if (Vector3.Distance(vertice1, centerSphere) < radiusSphere && !impacted[i, j, k, 0]) {
-                        cube.combination |= (1 << 0);
-                    }
-                    if (Vector3.Distance(vertice2, centerSphere) < radiusSphere && !impacted[i, j, k, 1]) {
-                        cube.combination |= (1 << 1);
-
-                    }
-                    if (Vector3.Distance(vertice3, centerSphere) < radiusSphere && !impacted[i, j, k, 2]) {
-                        cube.combination |= (1 << 2);
-
-                    }
-                    if (Vector3.Distance(vertice4, centerSphere) < radiusSphere && !impacted[i, j, k, 3]) {
-                        cube.combination |= (1 << 3);
-
-                    }
-                    if (Vector3.Distance(vertice5, centerSphere) < radiusSphere && !impacted[i, j, k, 4]) {
-                        cube.combination |= (1 << 4);
-
-                    }
-                    if (Vector3.Distance(vertice6, centerSphere) < radiusSphere && !impacted[i, j, k, 5]) {
-                        cube.combination |= (1 << 5);
-
-                    }
-                    if (Vector3.Distance(vertice7, centerSphere) < radiusSphere && !impacted[i, j, k, 6]) {
-                        cube.combination |= (1 << 6);
-
-                    }
-                    if (Vector3.Distance(vertice8, centerSphere) < radiusSphere && !impacted[i, j, k, 7]) {
-                        cube.combination |= (1 << 7);
-
-                    }
-
-                    int edgeMask = edgeTable[cube.combination];
-
-                    if (edgeMask == 0) {
-                        continue;
-                    }
-
-                    int[] edges = new int[12];
-
-					for (int edgeIndex = 0; edgeIndex < 12; edgeIndex++) {
-						if ((edgeMask & (1 << edgeIndex)) == 0) {
-							continue;
-						}
-
-						int verticeStartIndex = relationEdgeToVertices[edgeIndex, 0];
-						int verticeEndIndex = relationEdgeToVertices[edgeIndex, 1];
-						Vector3 p0 = verticesCubeRelativePositions[verticeStartIndex];
-						Vector3 p1 = verticesCubeRelativePositions[verticeEndIndex];
-
-                        Vector3 midPoint = ((p1 - p0) * 0.5f) + p0;
-
-                        midPoint *= sizeCube;
-                        midPoint += new Vector3(i * sizeCube, j * sizeCube, k * sizeCube);
-
-						edges[edgeIndex] = vertices.Count;
-						vertices.Add(midPoint);
-
-                    }
-
-                    //int[] combination = combinations[cube.combination];
-
-                    /*for (int n = 0; n < combination.Length; n++) {
-                        triangles.Add(edges[combination[n]]);
-                    }*/
-                    for (int n = 0; n < 16; n+=3) {
-                        if (combinations[cube.combination, n] == -1) {
-                            break;
+                    cube.configuration = 0;
+                    for (int verticeIndex = 0; verticeIndex < 8; verticeIndex++) {
+                        Vector3 relativePosition = GetCubeVerticePositionRelativeByIndex(verticeIndex);
+                        CubeVertice vertice = cubeVertices[i + (int)relativePosition.x, j + (int)relativePosition.y, k + (int)relativePosition.z];
+                        if (!vertice.isDestroyed) {
+                            cube.configuration |= (1 << verticeIndex);
                         }
-                        triangles.Add(edges[combinations[cube.combination, n + 2]]);
-                        triangles.Add(edges[combinations[cube.combination, n + 1]]);
-                        triangles.Add(edges[combinations[cube.combination, n]]);
                     }
+                    cubes[i, j, k] = cube;
                 }
             }
         }
 
-        mesh.Clear();
-        mesh.vertices = vertices.ToArray();
-        mesh.triangles = triangles.ToArray();
-
-
-        mesh.RecalculateBounds();
-        mesh.RecalculateNormals();
-        mesh.RecalculateTangents();
-
-        GetComponent<MeshCollider>().sharedMesh = null;
-        GetComponent<MeshCollider>().sharedMesh = mesh;
+        RebuildMesh();
     }
 
-    void Awake () {
-        combinations = new int[256, 16] {
+
+    //STATIC VARiABLE AND METHODS (DATA NECESSARY FOR MARCHING CUBES ALGORITHM)
+    static public int[] GetCubeTrianglesConfigurationByIndex(int index) {
+        List<int> triangleIndexes = new List<int>();
+        for (int i = 0; i < 16; i++) {
+            if (cubeTrianglesConfigurations[index, i] == -1) {
+                break;
+            }
+            triangleIndexes.Add(cubeTrianglesConfigurations[index, i]);
+        }
+        return triangleIndexes.ToArray();
+    }
+    static public int GetCubeEdgesConfigurationByIndex(int index) {
+        return cubeEdgesConfigurations[index];
+    }
+    static public int[] GetVerticePairsByEdgeIndex(int index) {
+        return new int[2] {verticePairs[index, 0], verticePairs[index, 1]};
+    }
+    static public Vector3 GetCubeVerticePositionRelativeByIndex(int index) {
+        return cubeVerticePositionsRelative[index];
+    }
+    static private int[,] cubeTrianglesConfigurations = new int[256, 16] {
         {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
         {0, 8, 3, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
         {0, 1, 9, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
@@ -567,65 +448,66 @@ public class MarchingCubes : MonoBehaviour
         {0, 9, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
         {0, 3, 8, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
         {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1}
-        };
+    };
 
-        edgeTable = new int[]{
-            0x0  , 0x109, 0x203, 0x30a, 0x406, 0x50f, 0x605, 0x70c,
-            0x80c, 0x905, 0xa0f, 0xb06, 0xc0a, 0xd03, 0xe09, 0xf00,
-            0x190, 0x99 , 0x393, 0x29a, 0x596, 0x49f, 0x795, 0x69c,
-            0x99c, 0x895, 0xb9f, 0xa96, 0xd9a, 0xc93, 0xf99, 0xe90,
-            0x230, 0x339, 0x33 , 0x13a, 0x636, 0x73f, 0x435, 0x53c,
-            0xa3c, 0xb35, 0x83f, 0x936, 0xe3a, 0xf33, 0xc39, 0xd30,
-            0x3a0, 0x2a9, 0x1a3, 0xaa , 0x7a6, 0x6af, 0x5a5, 0x4ac,
-            0xbac, 0xaa5, 0x9af, 0x8a6, 0xfaa, 0xea3, 0xda9, 0xca0,
-            0x460, 0x569, 0x663, 0x76a, 0x66 , 0x16f, 0x265, 0x36c,
-            0xc6c, 0xd65, 0xe6f, 0xf66, 0x86a, 0x963, 0xa69, 0xb60,
-            0x5f0, 0x4f9, 0x7f3, 0x6fa, 0x1f6, 0xff , 0x3f5, 0x2fc,
-            0xdfc, 0xcf5, 0xfff, 0xef6, 0x9fa, 0x8f3, 0xbf9, 0xaf0,
-            0x650, 0x759, 0x453, 0x55a, 0x256, 0x35f, 0x55 , 0x15c,
-            0xe5c, 0xf55, 0xc5f, 0xd56, 0xa5a, 0xb53, 0x859, 0x950,
-            0x7c0, 0x6c9, 0x5c3, 0x4ca, 0x3c6, 0x2cf, 0x1c5, 0xcc ,
-            0xfcc, 0xec5, 0xdcf, 0xcc6, 0xbca, 0xac3, 0x9c9, 0x8c0,
-            0x8c0, 0x9c9, 0xac3, 0xbca, 0xcc6, 0xdcf, 0xec5, 0xfcc,
-            0xcc , 0x1c5, 0x2cf, 0x3c6, 0x4ca, 0x5c3, 0x6c9, 0x7c0,
-            0x950, 0x859, 0xb53, 0xa5a, 0xd56, 0xc5f, 0xf55, 0xe5c,
-            0x15c, 0x55 , 0x35f, 0x256, 0x55a, 0x453, 0x759, 0x650,
-            0xaf0, 0xbf9, 0x8f3, 0x9fa, 0xef6, 0xfff, 0xcf5, 0xdfc,
-            0x2fc, 0x3f5, 0xff , 0x1f6, 0x6fa, 0x7f3, 0x4f9, 0x5f0,
-            0xb60, 0xa69, 0x963, 0x86a, 0xf66, 0xe6f, 0xd65, 0xc6c,
-            0x36c, 0x265, 0x16f, 0x66 , 0x76a, 0x663, 0x569, 0x460,
-            0xca0, 0xda9, 0xea3, 0xfaa, 0x8a6, 0x9af, 0xaa5, 0xbac,
-            0x4ac, 0x5a5, 0x6af, 0x7a6, 0xaa , 0x1a3, 0x2a9, 0x3a0,
-            0xd30, 0xc39, 0xf33, 0xe3a, 0x936, 0x83f, 0xb35, 0xa3c,
-            0x53c, 0x435, 0x73f, 0x636, 0x13a, 0x33 , 0x339, 0x230,
-            0xe90, 0xf99, 0xc93, 0xd9a, 0xa96, 0xb9f, 0x895, 0x99c,
-            0x69c, 0x795, 0x49f, 0x596, 0x29a, 0x393, 0x99 , 0x190,
-            0xf00, 0xe09, 0xd03, 0xc0a, 0xb06, 0xa0f, 0x905, 0x80c,
-            0x70c, 0x605, 0x50f, 0x406, 0x30a, 0x203, 0x109, 0x0
-	    };
-        relationEdgeToVertices = new int[,]{
-            {0, 1},
-            {1, 2},
-            {2, 3},
-            {3, 0},
-            {4, 5},
-            {5, 6},
-            {6, 7},
-            {7, 4},
-            {0, 4},
-            {1, 5},
-            {2, 6},
-            {3, 7},
-        };
-        verticesCubeRelativePositions = new Vector3[]{
-            new Vector3(1,0,0),
-            new Vector3(0,0,0),
-            new Vector3(0,0,1),
-            new Vector3(1,0,1),
-            new Vector3(1,1,0),
-            new Vector3(0,1,0),
-            new Vector3(0,1,1),
-            new Vector3(1,1,1)
-        };
-    }
+    static private int[] cubeEdgesConfigurations = new int[256]{
+        0x0  , 0x109, 0x203, 0x30a, 0x406, 0x50f, 0x605, 0x70c,
+        0x80c, 0x905, 0xa0f, 0xb06, 0xc0a, 0xd03, 0xe09, 0xf00,
+        0x190, 0x99 , 0x393, 0x29a, 0x596, 0x49f, 0x795, 0x69c,
+        0x99c, 0x895, 0xb9f, 0xa96, 0xd9a, 0xc93, 0xf99, 0xe90,
+        0x230, 0x339, 0x33 , 0x13a, 0x636, 0x73f, 0x435, 0x53c,
+        0xa3c, 0xb35, 0x83f, 0x936, 0xe3a, 0xf33, 0xc39, 0xd30,
+        0x3a0, 0x2a9, 0x1a3, 0xaa , 0x7a6, 0x6af, 0x5a5, 0x4ac,
+        0xbac, 0xaa5, 0x9af, 0x8a6, 0xfaa, 0xea3, 0xda9, 0xca0,
+        0x460, 0x569, 0x663, 0x76a, 0x66 , 0x16f, 0x265, 0x36c,
+        0xc6c, 0xd65, 0xe6f, 0xf66, 0x86a, 0x963, 0xa69, 0xb60,
+        0x5f0, 0x4f9, 0x7f3, 0x6fa, 0x1f6, 0xff , 0x3f5, 0x2fc,
+        0xdfc, 0xcf5, 0xfff, 0xef6, 0x9fa, 0x8f3, 0xbf9, 0xaf0,
+        0x650, 0x759, 0x453, 0x55a, 0x256, 0x35f, 0x55 , 0x15c,
+        0xe5c, 0xf55, 0xc5f, 0xd56, 0xa5a, 0xb53, 0x859, 0x950,
+        0x7c0, 0x6c9, 0x5c3, 0x4ca, 0x3c6, 0x2cf, 0x1c5, 0xcc ,
+        0xfcc, 0xec5, 0xdcf, 0xcc6, 0xbca, 0xac3, 0x9c9, 0x8c0,
+        0x8c0, 0x9c9, 0xac3, 0xbca, 0xcc6, 0xdcf, 0xec5, 0xfcc,
+        0xcc , 0x1c5, 0x2cf, 0x3c6, 0x4ca, 0x5c3, 0x6c9, 0x7c0,
+        0x950, 0x859, 0xb53, 0xa5a, 0xd56, 0xc5f, 0xf55, 0xe5c,
+        0x15c, 0x55 , 0x35f, 0x256, 0x55a, 0x453, 0x759, 0x650,
+        0xaf0, 0xbf9, 0x8f3, 0x9fa, 0xef6, 0xfff, 0xcf5, 0xdfc,
+        0x2fc, 0x3f5, 0xff , 0x1f6, 0x6fa, 0x7f3, 0x4f9, 0x5f0,
+        0xb60, 0xa69, 0x963, 0x86a, 0xf66, 0xe6f, 0xd65, 0xc6c,
+        0x36c, 0x265, 0x16f, 0x66 , 0x76a, 0x663, 0x569, 0x460,
+        0xca0, 0xda9, 0xea3, 0xfaa, 0x8a6, 0x9af, 0xaa5, 0xbac,
+        0x4ac, 0x5a5, 0x6af, 0x7a6, 0xaa , 0x1a3, 0x2a9, 0x3a0,
+        0xd30, 0xc39, 0xf33, 0xe3a, 0x936, 0x83f, 0xb35, 0xa3c,
+        0x53c, 0x435, 0x73f, 0x636, 0x13a, 0x33 , 0x339, 0x230,
+        0xe90, 0xf99, 0xc93, 0xd9a, 0xa96, 0xb9f, 0x895, 0x99c,
+        0x69c, 0x795, 0x49f, 0x596, 0x29a, 0x393, 0x99 , 0x190,
+        0xf00, 0xe09, 0xd03, 0xc0a, 0xb06, 0xa0f, 0x905, 0x80c,
+        0x70c, 0x605, 0x50f, 0x406, 0x30a, 0x203, 0x109, 0x0
+	};
+
+    static private int[,] verticePairs = new int[12,2]{
+        {0, 1},
+        {1, 2},
+        {2, 3},
+        {3, 0},
+        {4, 5},
+        {5, 6},
+        {6, 7},
+        {7, 4},
+        {0, 4},
+        {1, 5},
+        {2, 6},
+        {3, 7},
+    };
+    static private Vector3[] cubeVerticePositionsRelative = new Vector3[8] {
+        new Vector3(1,0,0),
+        new Vector3(0,0,0),
+        new Vector3(0,0,1),
+        new Vector3(1,0,1),
+        new Vector3(1,1,0),
+        new Vector3(0,1,0),
+        new Vector3(0,1,1),
+        new Vector3(1,1,1)
+    };
+
 }
